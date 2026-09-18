@@ -1,0 +1,23 @@
+id = "asumaran.gotosession"
+name = "gotosession"
+version = "0.1.0"
+min_herdr_version = "0.7.5"
+description = "Pick a Claude Code session and resume it in the herdr space of its directory"
+platforms = ["macos"]
+
+[[build]]
+command = ["scripts/fetch-binary.sh"]
+
+[[actions]]
+id = "open"
+title = "Open session switcher"
+contexts = ["global"]
+command = ["scripts/open-pane.sh"]
+
+[[panes]]
+id = "picker"
+title = "Sessions"
+placement = "popup"
+width = "85%"
+height = "90%"
+command = ["./gotosession"]
