@@ -48,7 +48,8 @@ var (
 	stPrompt = lipgloss.NewStyle().Foreground(lipgloss.Color("13")).Bold(true)
 	stDev    = lipgloss.NewStyle().Foreground(lipgloss.Color("208")).Bold(true)
 	stSel    = lipgloss.NewStyle().Background(lipgloss.Color("8")).Bold(true)
-	stMatch  = lipgloss.NewStyle().Foreground(lipgloss.Color("11"))
+	// a filter match: asgitlog's look, also over the selected row's background
+	stMatch  = lipgloss.NewStyle().Foreground(lipgloss.Color("13")).Underline(true)
 	stHeader = lipgloss.NewStyle().Foreground(lipgloss.Color("6")).Bold(true)
 	stDim    = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
 	stTitle  = lipgloss.NewStyle().Bold(true)
@@ -327,11 +328,11 @@ func (m *model) sessionLine(r sessionRow, selected bool, width int) string {
 		mark = "●"
 	}
 	if selected {
-		line := "▌" + mark + padRight(r.s.label(), titleW) + " "
+		line := stSel.Render("▌"+mark) + highlight(padRight(r.s.label(), titleW), r.titleIdx, stSel) + stSel.Render(" ")
 		if pathW > 0 {
-			line += padRight(pathCells(dir, nil, pathW, false), pathW) + " "
+			line += selPad(pathCells(dir, r.pathIdx, pathW, true), pathW) + stSel.Render(" ")
 		}
-		return stSel.Render(padRight(line+age, width))
+		return selPad(truncate(line+stSel.Render(age), width), width)
 	}
 	base := stTitle
 	switch {
@@ -342,15 +343,20 @@ func (m *model) sessionLine(r sessionRow, selected bool, width int) string {
 	}
 	line := " " + stLive.Render(mark) + padRight(highlight(r.s.label(), r.titleIdx, base), titleW) + " "
 	if pathW > 0 {
-		line += padRight(pathCells(dir, r.pathIdx, pathW, true), pathW) + " "
+		line += padRight(pathCells(dir, r.pathIdx, pathW, false), pathW) + " "
 	}
 	return truncate(line+stDim.Render(age), width)
 }
 
 // pathCells fits a path into width. A path that does not fit loses its head,
-// not its tail, so the worktree name is always visible. The path is dimmed
-// and the matched bytes highlighted when styled is set.
-func pathCells(path string, idx []int, width int, styled bool) string {
+// not its tail, so the worktree name is always visible. The path is dimmed,
+// or takes the selected row's background, and the matched bytes are
+// highlighted over either.
+func pathCells(path string, idx []int, width int, selected bool) string {
+	plain := stDim
+	if selected {
+		plain = stSel
+	}
 	type cell struct {
 		r   rune
 		off int
@@ -373,26 +379,31 @@ func pathCells(path string, idx []int, width int, styled bool) string {
 		if run.Len() == 0 {
 			return
 		}
-		if styled {
-			b.WriteString(stDim.Render(run.String()))
-		} else {
-			b.WriteString(run.String())
-		}
+		b.WriteString(plain.Render(run.String()))
 		run.Reset()
 	}
 	if cut {
 		run.WriteString("…")
 	}
 	for _, c := range cells {
-		if styled && matched[c.off] {
+		if matched[c.off] {
 			flush()
-			b.WriteString(stMatch.Render(string(c.r)))
+			b.WriteString(matchOver(plain).Render(string(c.r)))
 			continue
 		}
 		run.WriteRune(c.r)
 	}
 	flush()
 	return b.String()
+}
+
+// selPad pads an already styled piece of the selected row to width, so the
+// row's background has no gaps.
+func selPad(s string, width int) string {
+	if n := width - ansi.StringWidth(s); n > 0 {
+		s += stSel.Render(strings.Repeat(" ", n))
+	}
+	return s
 }
 
 func (m *model) setCursor(i int) {

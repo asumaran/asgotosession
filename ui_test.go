@@ -140,9 +140,30 @@ func TestSessionLine(t *testing.T) {
 }
 
 func TestPathCellsKeepsTail(t *testing.T) {
-	got := pathCells("~/wt/monorepo-front/fix-ESHOP-551", nil, 14, false)
+	got := ansi.Strip(pathCells("~/wt/monorepo-front/fix-ESHOP-551", nil, 14, false))
 	if got != "…fix-ESHOP-551" {
 		t.Errorf("got %q", got)
+	}
+}
+
+func TestSelectedRowKeepsItsMatches(t *testing.T) {
+	sessions, _ := fixture(t)
+	m := newModel(sessions, "", options{query: "canonical"})
+	for _, selected := range []bool{false, true} {
+		line := m.sessionLine(m.rows[0], selected, 60)
+		base := stTitle
+		if selected {
+			base = stSel
+		}
+		if want := matchOver(base).Render("C"); !strings.Contains(line, want) {
+			t.Errorf("selected %v: no underlined match %q in %q", selected, want, line)
+		}
+		if w := ansi.StringWidth(line); w != 60 && selected {
+			t.Errorf("selected row is %d cells wide, want 60", w)
+		}
+	}
+	if !stMatch.GetUnderline() || matchOver(stSel).GetBackground() != stSel.GetBackground() {
+		t.Errorf("a match is underlined and keeps the background it sits on")
 	}
 }
 
