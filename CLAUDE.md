@@ -55,7 +55,7 @@ are split by concern:
 - `herdr.go` — the herdr CLI behind a `runner` func (faked in tests):
   `liveSessions`, `openInHerdr`, `awaitAgentFocus` / `detachAgentFocus`,
   `runResume`.
-- `filter.go` — fuzzy rows, `bestIndex`, `highlight`.
+- `filter.go` — fuzzy rows.
 - `match.go` — `findTight`, the fuzzy matcher with one correction: it is
   greedy (first candidate for each rune, left to right), so a query that
   occurs in one piece could still match scattered letters before it. When the
@@ -133,8 +133,12 @@ Keybinding (user config): `prefix+y` / `ctrl+alt+h` → `plugin_action`
   `~/.config/herdr/asgotosession-tui`), keyed by path and valid while mtime and
   size match. Entries of deleted transcripts are dropped on the next save.
   Whether the directory still exists is NOT cached: it is checked every run.
-- **Filtering keeps the newest-first order**; the fuzzy score only decides
-  where the cursor lands (`bestIndex`). It matches the title column, the `~`
+- **A query makes the list a search result**: rows are ranked, best match
+  first, and the cursor sits on the first one (`rank` in `rank.go`, the same
+  file in every picker of the family). Equal scores keep the list's own
+  order, newest first, which is also the order without a query. A score says how
+  good the match is and nothing about the length of the text (`match.go`).
+  It matches the title column, the `~`
   path and a hidden corpus (branch + id). Matched indexes from `sahilm/fuzzy`
   are BYTE offsets. With an empty query the cursor stays on the row it was on
   (`refilter`).

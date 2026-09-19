@@ -58,17 +58,5 @@ func filterSessions(sessions []*session, q, home string) []sessionRow {
 			rows = append(rows, *r)
 		}
 	}
-	return rows
-}
-
-// bestIndex returns the position of the highest score; ties go to the first
-// (newest) row. -1 for an empty list.
-func bestIndex(n int, score func(int) int) int {
-	best := -1
-	for i := 0; i < n; i++ {
-		if best == -1 || score(i) > score(best) {
-			best = i
-		}
-	}
-	return best
+	return rank(rows, func(r sessionRow) int { return r.score }, nil) // a search result: best match first
 }
