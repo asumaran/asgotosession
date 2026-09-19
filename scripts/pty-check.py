@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""End-to-end TUI check for gotosession without a real terminal.
+"""End-to-end TUI check for asgotosession without a real terminal.
 
 Spawns the binary on a pty, answers the terminal queries bubbletea sends
 (OSC 10/11, CSI 6n, DA1), replays keystrokes, and asserts on frames rendered
@@ -9,14 +9,14 @@ transcripts (CLAUDE_PROJECTS_DIR), a logging stub instead of claude
 It never reads the real transcripts, never talks to a herdr server and never
 starts claude.
 
-Usage: scripts/pty-check.py ./gotosession   (needs python3 + pyte)
+Usage: scripts/pty-check.py ./asgotosession   (needs python3 + pyte)
 """
 import atexit, fcntl, json, os, pty, select, shutil, signal, struct, subprocess, sys, tempfile, termios, time
 import pyte
 
 BIN = os.path.abspath(sys.argv[1])
 ROWS, COLS = 16, 150
-SANDBOX = os.path.realpath(tempfile.mkdtemp(prefix="gotosession-pty-"))
+SANDBOX = os.path.realpath(tempfile.mkdtemp(prefix="asgotosession-pty-"))
 
 # ---------- sandbox: fake home, transcripts, stubs ----------
 home = os.path.join(SANDBOX, "home")
@@ -145,7 +145,7 @@ class Session:
     def start(self):
         for _ in range(50):
             self.pump(0.1)
-            if "gotosession (dev) ❯" in "\n".join(self.frame()): break
+            if "asgotosession (dev) ❯" in "\n".join(self.frame()): break
         self.pump(0.5); self.repaint()
         return self.frame()
 
@@ -181,12 +181,12 @@ def dump(title, f):
 
 CTRL_A, ESC, ENTER, TAB, DOWN = b"\x01", b"\x1b", b"\r", b"\t", b"\x1b[B"
 
-print("== gotosession pty driver (%dx%d) ==" % (COLS, ROWS))
+print("== asgotosession pty driver (%dx%d) ==" % (COLS, ROWS))
 
 # ---------- run 1: outside herdr: list, preview, filter, resume in place ----------
 s = Session(in_herdr=False)
 f = s.start(); dump("plain run", f)
-check(prompt(f) == "gotosession (dev) ❯", "prompt line is clean: %r" % f[1])
+check(prompt(f) == "asgotosession (dev) ❯", "prompt line is clean: %r" % f[1])
 check(f[0].startswith("╭") and f[-1].startswith("╰") and f[2].startswith("├") and "┬" in f[2],
       "one frame: the input sits right under the top border, no title line")
 check(b"\x1b[?1049h" in s.raw, "program entered the alt screen")

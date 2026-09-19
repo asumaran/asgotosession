@@ -1,9 +1,9 @@
-// gotosession: a herdr plugin popup that lists your Claude Code sessions and
+// asgotosession: a herdr plugin popup that lists your Claude Code sessions and
 // resumes the chosen one in the herdr space of its directory: the pane where
 // it is already live, an idle shell of that space, a new tab in it, or a new
 // space. Outside herdr it resumes in place, as a plain command.
 //
-// The data comes from the transcripts under ~/.claude/projects. gotosession
+// The data comes from the transcripts under ~/.claude/projects. asgotosession
 // only reads them.
 package main
 
@@ -29,7 +29,7 @@ func main() {
 	query := flag.String("query", "", "initial filter; with -dump, print the matches and their scores")
 	awaitFocus := flag.String("await-focus", "", "internal: focus this pane once herdr sees the agent in it")
 	flag.Usage = func() {
-		fmt.Fprintln(flag.CommandLine.Output(), "usage: gotosession [flags] [query]")
+		fmt.Fprintln(flag.CommandLine.Output(), "usage: asgotosession [flags] [query]")
 		flag.PrintDefaults()
 	}
 	flag.Parse()
@@ -59,7 +59,7 @@ func main() {
 
 	if *dump {
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "gotosession:", err)
+			fmt.Fprintln(os.Stderr, "asgotosession:", err)
 			os.Exit(1)
 		}
 		runDump(sessions, opts, time.Since(start))
@@ -74,7 +74,7 @@ func main() {
 	}
 	if s := res.(model).chosen; s != nil {
 		if err := runResume(s); err != nil {
-			fmt.Fprintln(os.Stderr, "gotosession:", err)
+			fmt.Fprintln(os.Stderr, "asgotosession:", err)
 			os.Exit(1)
 		}
 	}

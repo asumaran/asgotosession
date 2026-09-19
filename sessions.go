@@ -229,7 +229,7 @@ func stateDir() string {
 	if base == "" {
 		base = filepath.Join(homeDir(), ".config")
 	}
-	return filepath.Join(base, "herdr", "gotosession-tui")
+	return filepath.Join(base, "herdr", "asgotosession-tui")
 }
 
 func cacheFile() string {

@@ -202,7 +202,7 @@ func TestFrameGeometry(t *testing.T) {
 			}
 		}
 		plain := strings.Split(ansi.Strip(m.render()), "\n")
-		if !strings.HasPrefix(plain[0], "╭") || !strings.HasPrefix(plain[len(plain)-1], "╰") || !strings.HasPrefix(plain[1], "│ gotosession") {
+		if !strings.HasPrefix(plain[0], "╭") || !strings.HasPrefix(plain[len(plain)-1], "╰") || !strings.HasPrefix(plain[1], "│ asgotosession") {
 			t.Errorf("%v: frame corners missing", size)
 		}
 		if !strings.Contains(plain[0], "2/2") || !strings.Contains(plain[mainY(false)], "┬") {
@@ -252,7 +252,7 @@ func TestCounterCarriesTheScope(t *testing.T) {
 
 // TestMain sandboxes the state dir: tests must never touch the real one.
 func TestMain(m *testing.M) {
-	dir, err := os.MkdirTemp("", "gotosession-test")
+	dir, err := os.MkdirTemp("", "asgotosession-test")
 	if err != nil {
 		panic(err)
 	}

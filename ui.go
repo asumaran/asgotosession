@@ -2,7 +2,7 @@ package main
 
 // The bubbletea model: one frame (see frame.go) holding the filter input, the
 // sessions next to the conversation preview, and the help.
-// Modeled on gotonotes and gotopr: the input is focused before the program
+// Modeled on asgotonotes and asgotopr: the input is focused before the program
 // starts, every printable key filters, and the chosen session is resumed
 // AFTER the TUI exits (quitting is what closes the popup).
 
@@ -166,7 +166,7 @@ func newModel(sessions []*session, loadErr string, opts options) model {
 	return m
 }
 
-// newFilterInput builds the focused filter textinput with the gotosession
+// newFilterInput builds the focused filter textinput with the asgotosession
 // prompt. The prompt string already carries its colors, so the prompt style
 // is left empty.
 func newFilterInput() textinput.Model {
@@ -184,9 +184,9 @@ func newFilterInput() textinput.Model {
 // non-release builds.
 func promptText() string {
 	if strings.HasPrefix(version, "v") {
-		return stPrompt.Render("gotosession ❯ ")
+		return stPrompt.Render("asgotosession ❯ ")
 	}
-	return stPrompt.Render("gotosession (") + stDev.Render("dev") + stPrompt.Render(") ❯ ")
+	return stPrompt.Render("asgotosession (") + stDev.Render("dev") + stPrompt.Render(") ❯ ")
 }
 
 func (m *model) current() *session {

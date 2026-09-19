@@ -1,23 +1,23 @@
-# gotosession
+# asgotosession
 
 A [herdr](https://github.com/asumaran/herdr) plugin popup that lists your
 Claude Code sessions and resumes the one you pick in the herdr space of its
 directory. It also runs as a plain command in any shell, where it resumes the
 session in place.
 
-Sibling of [gotonotes](https://github.com/asumaran/gotonotes),
-[gotopr](https://github.com/asumaran/gotopr) and
-[herdr-goto](https://github.com/asumaran/herdr-goto): same open-pick-exit
+Sibling of [asgotonotes](https://github.com/asumaran/asgotonotes),
+[asgotopr](https://github.com/asumaran/asgotopr) and
+[asgoto](https://github.com/asumaran/asgoto): same open-pick-exit
 popup, same fuzzy search.
 
 ```
 ╭─────────────────────────────────────────────────────────────────────────────────────────────────── 358/358 ─╮
-│ gotosession ❯                                                                                               │
+│ asgotosession ❯                                                                                             │
 ├────────────────────────────────────────────────────────────┬────────────────────────────────────────────────┤
-│▌●Checkout form validation   …fix-checkout-form-validation 17m│ ❯ now the error messages                       │
-│ ●Release plan               ~/wt/shop/chore-release-plan 46m│                                                │
-│  Remove the old fzf helpers ~/Developer/dotfiles          1h│ Done: each field reports its own               │
-│  Cache layer rewrite        ~/Developer/tool              4h│ error under the input. …                       │
+│▌●Checkout form validation  …fix-checkout-form-validation 17m│ ❯ now the error messages                      │
+│ ●Release plan               ~/wt/shop/chore-release-plan 46m│                                               │
+│  Remove the old fzf helpers ~/Developer/dotfiles          1h│ Done: each field reports its own              │
+│  Cache layer rewrite        ~/Developer/tool              4h│ error under the input. …                      │
 ├────────────────────────────────────────────────────────────┴──────────────────────────────────────── 12/12 ─┤
 │ type filter • enter resume • tab this dir • ^a missing dirs • ⇧↓ scroll preview • ⇧←/⇧→ resize • esc/q quit │
 ╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
@@ -33,12 +33,12 @@ it at another directory.
 ## Install
 
 ```
-herdr plugin install asumaran/gotosession
+herdr plugin install asumaran/asgotosession
 ```
 
 The manifest's `[[build]]` runs `scripts/fetch-binary.sh`, which downloads the
 release binary matching the manifest version and falls back to `go build`
-(`GOTOSESSION_BUILD_FROM_SOURCE=1` skips the download).
+(`ASGOTOSESSION_BUILD_FROM_SOURCE=1` skips the download).
 
 Bind a key to the `open` action in `~/.config/herdr/config.toml`:
 
@@ -46,14 +46,14 @@ Bind a key to the `open` action in `~/.config/herdr/config.toml`:
 [[keys.command]]
 key = ["prefix+y", "ctrl+alt+h"]
 type = "plugin_action"
-command = "asumaran.gotosession.open"
-description = "gotosession (Claude session switcher)"
+command = "asumaran.asgotosession.open"
+description = "asgotosession (Claude session switcher)"
 ```
 
 To use it outside herdr, put the binary on your `PATH`:
 
 ```
-ln -s "$(herdr plugin list --json | jq -r '.result.plugins[] | select(.plugin_id == "asumaran.gotosession") | .plugin_root')/gotosession" ~/.local/bin/gotosession
+ln -s "$(herdr plugin list --json | jq -r '.result.plugins[] | select(.plugin_id == "asumaran.asgotosession") | .plugin_root')/asgotosession" ~/.local/bin/asgotosession
 ```
 
 ## Usage
@@ -106,7 +106,7 @@ the directory the session started in); the popup stays up and says so.
 ### As a command
 
 ```
-gotosession [-here] [-all] [query]
+asgotosession [-here] [-all] [query]
 ```
 
 `-here` starts narrowed to the current directory, `-all` starts with the
@@ -115,7 +115,7 @@ missing directories listed, and `query` is the initial filter.
 
 ## Behavior notes
 
-- gotosession only reads the transcripts. The one thing it writes is its own
+- asgotosession only reads the transcripts. The one thing it writes is its own
   cache.
 - A transcript is scanned once for its directory, branch, title and first
   prompt, and the result is cached per (path, mtime, size) in the plugin state
@@ -130,16 +130,16 @@ missing directories listed, and `query` is the initial filter.
 ## Development
 
 ```bash
-go build -o gotosession .   # local build (plugin runs ./gotosession from the repo root)
-./gotosession -dump         # print the sessions as the popup would list them (no TTY)
-./gotosession -dump -all    # include the ones whose directory is gone
-./gotosession -dump -query eshop   # matches with their scores
+go build -o asgotosession .   # local build (plugin runs ./asgotosession from the repo root)
+./asgotosession -dump         # print the sessions as the popup would list them (no TTY)
+./asgotosession -dump -all    # include the ones whose directory is gone
+./asgotosession -dump -query eshop   # matches with their scores
 go vet ./... && go test ./...
-scripts/pty-check.py ./gotosession   # end-to-end TUI check on a pty (python3 + pyte)
-herdr plugin link ~/Developer/gotosession   # register the working copy (no build step)
+scripts/pty-check.py ./asgotosession   # end-to-end TUI check on a pty (python3 + pyte)
+herdr plugin link ~/Developer/asgotosession   # register the working copy (no build step)
 ```
 
-`GOTOSESSION_POPUP_WIDTH` / `GOTOSESSION_POPUP_HEIGHT` override the popup size
+`ASGOTOSESSION_POPUP_WIDTH` / `ASGOTOSESSION_POPUP_HEIGHT` override the popup size
 from the manifest.
 
 ## Releasing
@@ -147,4 +147,4 @@ from the manifest.
 `scripts/release.sh <X.Y.Z>` gates on a clean tree + green vet/build/test,
 generates the CHANGELOG entry from commit subjects, syncs the manifest
 version, commits, tags and publishes the GitHub release; CI then attaches
-`gotosession-darwin-arm64`, the asset `fetch-binary.sh` downloads on installs.
+`asgotosession-darwin-arm64`, the asset `fetch-binary.sh` downloads on installs.

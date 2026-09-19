@@ -4,9 +4,9 @@ Guidance for working in this repository.
 
 ## What this is
 
-`gotosession` is a herdr plugin popup that lists the user's Claude Code
+`asgotosession` is a herdr plugin popup that lists the user's Claude Code
 sessions and resumes the chosen one in the herdr space of its directory. Open,
-pick, exit: same lifecycle and look as `gotonotes`, `gotopr` and `herdr-goto`,
+pick, exit: same lifecycle and look as `asgotonotes`, `asgotopr` and `asgoto`,
 which this repo is modeled on. It is the Go port of `fcs`, a bash + fzf
 script, and must keep listing exactly what that script listed.
 
@@ -14,9 +14,9 @@ It only reads the transcripts. It writes nothing except its own cache, and the
 only things it runs are herdr CLI calls (or `claude --resume` outside herdr),
 after the TUI has quit.
 
-Distributed as a herdr plugin (`herdr plugin install asumaran/gotosession`;
+Distributed as a herdr plugin (`herdr plugin install asumaran/asgotosession`;
 the manifest's `[[build]]` runs `scripts/fetch-binary.sh`). Each GitHub Release
-attaches `gotosession-darwin-arm64`. There is no published library.
+attaches `asgotosession-darwin-arm64`. There is no published library.
 
 ## Data source
 
@@ -61,7 +61,7 @@ are split by concern:
   `listY`, `frameRows`, each with or without the optional context line).
 - `split.go` — the divider between the list and the preview: `loadSplit`,
   `saveSplit`, `stepSplit`, `splitWidths`. The file is copied, not imported:
-  the same one ships in gotochanged, gotonotes, gotopr and gotojira (all under
+  the same one ships in asgotochanged, asgotonotes, asgotopr and asgotoissues (all under
   github.com/asumaran), and there is no shared library. A pull request only
   needs to change it here; the maintainer ports the change to the other copies.
 - `ui.go` — the bubbletea model/Update/View, toggles, mouse, styles,
@@ -73,16 +73,16 @@ are split by concern:
 ## Build & run
 
 ```bash
-go build -o gotosession .    # plugin runs ./gotosession from the repo root
-./gotosession -dump          # sessions as the popup would list them, no TTY
-./gotosession -dump -all     # include sessions whose directory is gone
-./gotosession -dump -query x # matches with scores
+go build -o asgotosession .    # plugin runs ./asgotosession from the repo root
+./asgotosession -dump          # sessions as the popup would list them, no TTY
+./asgotosession -dump -all     # include sessions whose directory is gone
+./asgotosession -dump -query x # matches with scores
 go vet ./... && go test ./...
-herdr plugin link ~/Developer/gotosession   # link does NOT run [[build]]; go build yourself
+herdr plugin link ~/Developer/asgotosession   # link does NOT run [[build]]; go build yourself
 ```
 
 Keybinding (user config): `prefix+y` / `ctrl+alt+h` → `plugin_action`
-`asumaran.gotosession.open` → `scripts/open-pane.sh` → `herdr plugin pane open`.
+`asumaran.asgotosession.open` → `scripts/open-pane.sh` → `herdr plugin pane open`.
 
 ## Behaviour / decisions
 
@@ -110,7 +110,7 @@ Keybinding (user config): `prefix+y` / `ctrl+alt+h` → `plugin_action`
   version need `rg`. A key inside a message body is escaped (`\"cwd\":`), so
   the raw match only ever hits real keys.
 - **Disk cache**: `sessions.json` in `HERDR_PLUGIN_STATE_DIR` (standalone:
-  `~/.config/herdr/gotosession-tui`), keyed by path and valid while mtime and
+  `~/.config/herdr/asgotosession-tui`), keyed by path and valid while mtime and
   size match. Entries of deleted transcripts are dropped on the next save.
   Whether the directory still exists is NOT cached: it is checked every run.
 - **Filtering keeps the newest-first order**; the fuzzy score only decides
@@ -161,7 +161,7 @@ cache, the list modes, filtering, the four ways of resuming (through a fake
 `runner`), preview rendering and key handling.
 
 For end-to-end verification without a TTY, `scripts/pty-check.py
-./gotosession` (python3 + `pyte`) spawns the binary on a pty, answers the
+./asgotosession` (python3 + `pyte`) spawns the binary on a pty, answers the
 terminal queries, replays keystrokes and asserts on pyte-rendered frames. It
 runs in a throwaway sandbox (fake `HOME`, synthetic transcripts via
 `CLAUDE_PROJECTS_DIR`, logging stubs as `CLAUDE_SESSIONS_CMD` and
@@ -183,5 +183,5 @@ JSON, like the real ones.
 `scripts/release.sh <X.Y.Z>` — clean-tree + vet/build/test gate, CHANGELOG
 generation from commit subjects, manifest version sync, commit + tag + GitHub
 release; CI (`.github/workflows/release.yml`) attaches
-`gotosession-darwin-arm64`. Releasing never touches the linked plugin's
-`./gotosession`; rebuild locally to keep testing dev code.
+`asgotosession-darwin-arm64`. Releasing never touches the linked plugin's
+`./asgotosession`; rebuild locally to keep testing dev code.

@@ -1,4 +1,4 @@
-module github.com/asumaran/gotosession
+module github.com/asumaran/asgotosession
 
 go 1.25.8
 

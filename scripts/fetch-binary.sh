@@ -1,5 +1,5 @@
 #!/bin/sh
-# fetch-binary.sh — the plugin's [[build]] command: provision ./gotosession without
+# fetch-binary.sh — the plugin's [[build]] command: provision ./asgotosession without
 # requiring a Go toolchain.
 #
 # Downloads the prebuilt binary attached to the GitHub release matching the
@@ -9,9 +9,9 @@
 # fails. Exits non-zero only when neither path works, which aborts the plugin
 # install.
 #
-# Set GOTOSESSION_BUILD_FROM_SOURCE=1 to skip the download and always compile
+# Set ASGOTOSESSION_BUILD_FROM_SOURCE=1 to skip the download and always compile
 # locally (for users who prefer not to run prebuilt binaries):
-#   GOTOSESSION_BUILD_FROM_SOURCE=1 herdr plugin install asumaran/gotosession
+#   ASGOTOSESSION_BUILD_FROM_SOURCE=1 herdr plugin install asumaran/asgotosession
 set -eu
 
 cd "$(dirname "$0")/.."
@@ -33,16 +33,16 @@ case "$(uname -m)" in
   *)               ARCH="" ;;
 esac
 
-URL="https://github.com/asumaran/gotosession/releases/download/v${VERSION}/gotosession-${OS}-${ARCH}"
+URL="https://github.com/asumaran/asgotosession/releases/download/v${VERSION}/asgotosession-${OS}-${ARCH}"
 
-if [ "${GOTOSESSION_BUILD_FROM_SOURCE:-0}" = "1" ]; then
-  echo "fetch-binary: GOTOSESSION_BUILD_FROM_SOURCE=1, skipping release download"
+if [ "${ASGOTOSESSION_BUILD_FROM_SOURCE:-0}" = "1" ]; then
+  echo "fetch-binary: ASGOTOSESSION_BUILD_FROM_SOURCE=1, skipping release download"
 elif [ -n "$OS" ] && [ -n "$ARCH" ] && command -v curl >/dev/null 2>&1; then
   tmp="$(mktemp)"
   if curl -fsSL --retry 2 -o "$tmp" "$URL"; then
     chmod +x "$tmp"
-    mv "$tmp" gotosession
-    echo "fetch-binary: installed gotosession-${OS}-${ARCH} from release v${VERSION}"
+    mv "$tmp" asgotosession
+    echo "fetch-binary: installed asgotosession-${OS}-${ARCH} from release v${VERSION}"
     exit 0
   fi
   rm -f "$tmp"
@@ -50,8 +50,8 @@ elif [ -n "$OS" ] && [ -n "$ARCH" ] && command -v curl >/dev/null 2>&1; then
 fi
 
 if command -v go >/dev/null 2>&1; then
-  go build -ldflags "-X main.version=v${VERSION}-source" -o gotosession .
-  echo "fetch-binary: built gotosession from source (v${VERSION}-source)"
+  go build -ldflags "-X main.version=v${VERSION}-source" -o asgotosession .
+  echo "fetch-binary: built asgotosession from source (v${VERSION}-source)"
   exit 0
 fi
 
