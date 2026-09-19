@@ -11,12 +11,16 @@ Sibling of [gotonotes](https://github.com/asumaran/gotonotes),
 popup, same fuzzy search.
 
 ```
-gotosession ❯
-▌●Checkout form validation         …/shop/fix-checkout-form-validation 17m │ ❯ now the error messages
- ●Release plan                     ~/wt/shop/chore-release-plan        46m │
-  Remove the old fzf helpers       ~/Developer/dotfiles                 1h │ Done: each field reports its own
-  Cache layer rewrite              ~/Developer/tool                     4h │ error under the input. …
-type filter • enter resume • tab this dir • ^a missing dirs • ⇧↓ scroll preview • esc/q quit  358 sessions
+╭──────────────────────────────────────────────────────────────────────────────────────── 358/358 ─╮
+│ gotosession ❯                                                                                    │
+├────────────────────────────────────────────────────────────┬─────────────────────────────────────┤
+│▌●Checkout form validation   …fix-checkout-form-validation 17m│ ❯ now the error messages            │
+│ ●Release plan               ~/wt/shop/chore-release-plan 46m│                                     │
+│  Remove the old fzf helpers ~/Developer/dotfiles          1h│ Done: each field reports its own    │
+│  Cache layer rewrite        ~/Developer/tool              4h│ error under the input. …            │
+├────────────────────────────────────────────────────────────┴───────────────────────────── 12/12 ─┤
+│ type filter • enter resume • tab this dir • ^a missing dirs • ⇧↓ scroll preview • esc/q quit     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ## Requirements
@@ -60,6 +64,10 @@ the session, otherwise the one Claude generated, otherwise the first prompt
 you typed. A `●` marks the sessions that are running in some herdr pane right
 now. The filter matches the title, the directory, the branch and the session
 id.
+
+The frame's top border shows how many sessions match out of the total and, in
+brackets, what the list is narrowed or widened to (`[in ~/some/dir]`,
+`[+missing dirs]`).
 
 The right side shows the session under the cursor: directory, branch, id and
 the end of the conversation, your prompts and Claude's replies only. It opens

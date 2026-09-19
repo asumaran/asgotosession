@@ -184,3 +184,68 @@ func TestReadTailCapsTurns(t *testing.T) {
 		t.Errorf("turns = %d, cut = %v, err = %v", len(turns), cut, err)
 	}
 }
+
+// TestFrameGeometry pins the single-frame layout: exactly height lines, each
+// exactly width cells, with the sections where the click math expects them.
+func TestFrameGeometry(t *testing.T) {
+	sessions, _ := fixture(t)
+	for _, size := range [][2]int{{94, 24}, {150, 16}, {61, 12}} {
+		next, _ := newModel(sessions, "", options{}).Update(tea.WindowSizeMsg{Width: size[0], Height: size[1]})
+		m := next.(model)
+		lines := strings.Split(m.render(), "\n")
+		if len(lines) != size[1] {
+			t.Errorf("%v: %d lines, want %d", size, len(lines), size[1])
+		}
+		for i, l := range lines {
+			if w := ansi.StringWidth(l); w != size[0] {
+				t.Errorf("%v: line %d is %d cells, want %d: %q", size, i, w, size[0], ansi.Strip(l))
+			}
+		}
+		plain := strings.Split(ansi.Strip(m.render()), "\n")
+		if !strings.HasPrefix(plain[0], "╭") || !strings.HasPrefix(plain[len(plain)-1], "╰") || !strings.HasPrefix(plain[1], "│ gotosession") {
+			t.Errorf("%v: frame corners missing", size)
+		}
+		if !strings.Contains(plain[0], "2/2") || !strings.Contains(plain[mainY(false)], "┬") {
+			t.Errorf("%v: counter or divider misplaced:\n%s\n%s", size, plain[0], plain[mainY(false)])
+		}
+		if !strings.Contains(plain[listY(false)], "▌●Canon") {
+			t.Errorf("%v: first row is not at listY: %q", size, plain[listY(false)])
+		}
+	}
+}
+
+func TestClickSelectsRow(t *testing.T) {
+	sessions, _ := fixture(t)
+	m := newModel(sessions, "", options{})
+	next, _ := m.Update(tea.MouseClickMsg{X: 3, Y: listY(false) + 1, Button: tea.MouseLeft})
+	clicked := next.(model)
+	if got := clicked.current().id; got != "s2" {
+		t.Errorf("click on the second row selected %s", got)
+	}
+	// The divider, the preview and the frame's own lines select nothing.
+	for _, c := range [][2]int{{0, listY(false) + 1}, {m.listW() + 1, listY(false) + 1}, {3, mainY(false)}, {3, 1}} {
+		next, _ = m.Update(tea.MouseClickMsg{X: c[0], Y: c[1], Button: tea.MouseLeft})
+		clicked = next.(model)
+		if got := clicked.current().id; got != "s1" {
+			t.Errorf("click at %v moved the cursor to %s", c, got)
+		}
+	}
+}
+
+// TestCounterCarriesTheScope: there is no context line; what the list is
+// narrowed or widened to sits next to the counter, on the top border.
+func TestCounterCarriesTheScope(t *testing.T) {
+	sessions, dir := fixture(t)
+	m := newModel(sessions, "", options{dir: dir})
+	if c := ansi.Strip(m.counter()); c != "2/2" {
+		t.Errorf("default counter = %q", c)
+	}
+	m = press(m, keyTab, keyCtrlA)
+	c := ansi.Strip(m.counter())
+	if !strings.HasPrefix(c, "3/3 [in ") || !strings.HasSuffix(c, ", +missing dirs]") {
+		t.Errorf("scoped counter = %q", c)
+	}
+	if top := strings.Split(ansi.Strip(m.render()), "\n")[0]; !strings.HasPrefix(top, "╭") || !strings.Contains(top, "3/3 [in ") {
+		t.Errorf("top border = %q", top)
+	}
+}

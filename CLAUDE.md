@@ -56,6 +56,9 @@ are split by concern:
   `liveSessions`, `openInHerdr`, `awaitAgentFocus` / `detachAgentFocus`,
   `runResume`.
 - `filter.go` — fuzzy rows, `bestIndex`, `highlight`.
+- `frame.go` — the single-frame layout shared by the family: `hline`, `fit`,
+  `framed`, `frameHead`, `splitMain`, `scrollPos` and the section rows (`mainY`,
+  `listY`, `frameRows`, each with or without the optional context line).
 - `ui.go` — the bubbletea model/Update/View, toggles, mouse, styles,
   `pathCells`.
 - `preview.go` — session preview as a `tea.Cmd` (tail of the transcript,
@@ -78,6 +81,17 @@ Keybinding (user config): `prefix+y` / `ctrl+alt+h` → `plugin_action`
 
 ## Behaviour / decisions
 
+- **Layout**: one rounded frame of sections split by shared edges, the layout
+  asgitlog introduced and every picker of the family follows (`frame.go`, the
+  same file in each repo): the filter input (the border over it carries the
+  matches/total counter and, in brackets, what the list is narrowed or widened
+  to, like asgitlog's scope), the main section (list and preview split by a
+  divider; its bottom edge carries the preview's scroll position), and the
+  help. A context line on top is only for what the rest of the screen cannot
+  say (asgitlog: repo and branch); a title is not context, so there is none
+  here. The list starts on screen row `listY`, one cell in from the left side,
+  which is what the click-to-row math uses. Errors and notices take the help
+  line.
 - **Scanning matches raw bytes**, decoding only title lines, the first cwd
   line and candidate prompt lines. Transcripts run to tens of megabytes and
   almost every line is a message body; decoding them all is what made the bash

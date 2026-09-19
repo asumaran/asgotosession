@@ -1,12 +1,13 @@
 package main
 
-// The bubbletea model: a filter input on top, a two-column body (sessions
-// left, conversation preview right) and a help footer. Modeled on gotonotes
-// and gotopr: the input is focused before the program starts, every printable
-// key filters, and the chosen session is resumed AFTER the TUI exits
-// (quitting is what closes the popup).
+// The bubbletea model: one frame (see frame.go) holding the filter input, the
+// sessions next to the conversation preview, and the help.
+// Modeled on gotonotes and gotopr: the input is focused before the program
+// starts, every printable key filters, and the chosen session is resumed
+// AFTER the TUI exits (quitting is what closes the popup).
 
 import (
+	"strconv"
 	"strings"
 	"time"
 
@@ -53,6 +54,8 @@ var (
 	stTitle  = lipgloss.NewStyle().Bold(true)
 	stError  = lipgloss.NewStyle().Foreground(lipgloss.Color("9")).Bold(true)
 	stLive   = lipgloss.NewStyle().Foreground(lipgloss.Color("10"))
+	stScope  = lipgloss.NewStyle().Foreground(lipgloss.Color("11"))
+	stCount  = lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
 	stUser   = lipgloss.NewStyle().Foreground(lipgloss.Color("6")).Bold(true)
 )
 
@@ -189,39 +192,27 @@ func (m *model) current() *session {
 
 // ---- layout ----
 
-func (m *model) listW() int {
-	w := (m.width - 3) / 2
-	if w < 20 {
-		w = 20
-	}
-	return w
-}
+// innerW is the width inside the frame's sides.
+func (m *model) innerW() int { return max(20, m.width-2) }
 
-func (m *model) prevW() int {
-	w := m.width - m.listW() - 3
-	if w < 10 {
-		w = 10
-	}
-	return w
-}
+// detailsW is the preview's share of the main section, including the cell of
+// padding on each side; prevW is the text width inside it.
+func (m *model) detailsW() int { return max(12, m.innerW()/2) }
+func (m *model) prevW() int    { return max(10, m.detailsW()-2) }
 
-// listTop is the screen row where the list starts: below the input.
-const listTop = 1
+// listW is what the divider leaves for the list.
+func (m *model) listW() int { return max(10, m.innerW()-1-m.detailsW()) }
 
-func (m *model) bodyH() int {
-	h := m.height - listTop - 1 // footer
-	if h < 1 {
-		h = 1
-	}
-	return h
-}
+// bodyH is the height of the main section: everything but the frame's own
+// lines and the help.
+func (m *model) bodyH() int { return max(1, m.height-frameRows(false)-1) }
 
 func (m *model) resize() {
 	m.listVP.SetWidth(m.listW())
 	m.listVP.SetHeight(m.bodyH())
 	m.prevVP.SetWidth(m.prevW())
 	m.prevVP.SetHeight(m.bodyH())
-	m.help.SetWidth(m.width)
+	m.help.SetWidth(max(0, m.width-4))
 }
 
 // ---- filtering ----
@@ -545,10 +536,11 @@ func (m model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 // handleClick moves the cursor to the row under a left click on the list. It
 // never resumes anything: that stays on enter.
 func (m model) handleClick(msg tea.MouseClickMsg) (tea.Model, tea.Cmd) {
-	if msg.Button != tea.MouseLeft || msg.X >= m.listW()+2 || msg.Y < listTop {
+	if msg.Button != tea.MouseLeft || msg.X < 1 || msg.X > m.listW() ||
+		msg.Y < listY(false) || msg.Y >= listY(false)+m.bodyH() {
 		return m, nil
 	}
-	i := msg.Y - listTop + m.listVP.YOffset()
+	i := msg.Y - listY(false) + m.listVP.YOffset()
 	if i < 0 || i >= len(m.rows) || i == m.cursor {
 		return m, nil
 	}
@@ -558,12 +550,52 @@ func (m model) handleClick(msg tea.MouseClickMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() tea.View {
-	sep := stDim.Render(strings.TrimRight(strings.Repeat("│\n", m.bodyH()), "\n"))
-	body := lipgloss.JoinHorizontal(lipgloss.Top, m.leftColumn(), " ", sep, " ", m.prevVP.View())
-	v := tea.NewView(m.ti.View() + "\n" + body + "\n" + m.footer())
+	v := tea.NewView(m.render())
 	v.AltScreen = true
 	v.MouseMode = tea.MouseModeCellMotion
 	return v
+}
+
+// render stacks the sections in one frame (see frame.go). There is no context
+// line: what the list is narrowed to fits next to the counter.
+func (m model) render() string {
+	w := m.width
+	out := frameHead(w, "", m.counter(), m.ti.View())
+	out = append(out, splitMain(m.listLines(), strings.Split(m.prevVP.View(), "\n"),
+		m.listW(), m.detailsW(), scrollPos(&m.prevVP))...)
+	out = append(out, framed(w, m.footer()), hline(w, "╰", "╯", "", ""))
+	return strings.Join(out, "\n")
+}
+
+// counter is the matches/total count of the current mode, followed by what
+// the list is narrowed or widened to (the scope, as in asgitlog).
+func (m model) counter() string {
+	s := stCount.Render(strconv.Itoa(len(m.rows)) + "/" + strconv.Itoa(len(m.visible())))
+	var scope []string
+	if m.here {
+		// A long directory loses its head, not its tail, like the list's paths.
+		scope = append(scope, "in "+pathCells(tildePath(m.hereDir, m.home), nil, max(10, m.width/3), false))
+	}
+	if m.all {
+		scope = append(scope, "+missing dirs")
+	}
+	if len(scope) > 0 {
+		s += " " + stScope.Render("["+strings.Join(scope, ", ")+"]")
+	}
+	return s
+}
+
+// listLines is the list as exactly bodyH lines of listW cells.
+func (m model) listLines() []string {
+	lines := strings.Split(m.leftColumn(), "\n")
+	for len(lines) < m.bodyH() {
+		lines = append(lines, "")
+	}
+	lines = lines[:m.bodyH()]
+	for i, l := range lines {
+		lines[i] = fit(l, m.listW())
+	}
+	return lines
 }
 
 // leftColumn is the list, or the reason there is nothing to list.
@@ -581,18 +613,13 @@ func (m model) leftColumn() string {
 	default:
 		msg = "No sessions yet"
 	}
-	return lipgloss.NewStyle().Width(m.listW()).Height(m.bodyH()).
-		Render(stDim.Render(truncate(msg, m.listW())))
+	return stDim.Render(truncate(" "+msg, m.listW()))
 }
 
+// footer is the key help, or the notice while one is showing.
 func (m model) footer() string {
-	f := m.help.View(m.keys)
 	if m.notice != "" {
-		return f + "  " + stError.Render(truncate(m.notice, m.width/2))
+		return stError.Render(truncate(m.notice, max(0, m.width-4)))
 	}
-	scope := countLabel(len(m.rows))
-	if m.here {
-		scope += " in " + tildePath(m.hereDir, m.home)
-	}
-	return f + "  " + stDim.Render(truncate(scope, m.width/3))
+	return truncate(m.help.View(m.keys), max(0, m.width-4))
 }

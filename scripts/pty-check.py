@@ -11,7 +11,7 @@ starts claude.
 
 Usage: scripts/pty-check.py ./gotosession   (needs python3 + pyte)
 """
-import atexit, fcntl, json, os, pty, select, shutil, struct, subprocess, sys, tempfile, termios, time
+import atexit, fcntl, json, os, pty, select, shutil, signal, struct, subprocess, sys, tempfile, termios, time
 import pyte
 
 BIN = os.path.abspath(sys.argv[1])
@@ -126,18 +126,27 @@ class Session:
                     os.write(self.master, reply)
             self.answered = len(self.raw)
 
+    def repaint(self):
+        # The v2 renderer updates the screen with scroll regions and SU, which
+        # pyte ignores; a resize forces a full redraw it can follow.
+        for cols in (COLS - 1, COLS):
+            fcntl.ioctl(self.master, termios.TIOCSWINSZ, struct.pack("HHHH", ROWS, cols, 0, 0))
+            self.screen.resize(ROWS, cols)
+            if self.proc.poll() is None: os.kill(self.proc.pid, signal.SIGWINCH)
+            self.pump(0.3)
+
     def frame(self):
         return [line.rstrip() for line in self.screen.display]
 
     def send(self, b, wait=0.4):
-        os.write(self.master, b); self.pump(wait)
+        os.write(self.master, b); self.pump(wait); self.repaint()
         return self.frame()
 
     def start(self):
         for _ in range(50):
             self.pump(0.1)
-            if "gotosession (dev) ❯" in self.frame()[0]: break
-        self.pump(0.5)
+            if "gotosession (dev) ❯" in "\n".join(self.frame()): break
+        self.pump(0.5); self.repaint()
         return self.frame()
 
     def finish(self):
@@ -154,9 +163,16 @@ class Session:
         if not os.path.exists(calls_log): return []
         return open(calls_log).read().splitlines()
 
-def listw(): return max((COLS - 3) // 2, 20)
-def left(f):  return [l[:listw()].rstrip() for l in f[1:-1]]
-def right(f): return [l[listw() + 3:].rstrip() for l in f[1:-1]]
+# One frame (see frame.go): top border with the counter, input, main edge,
+# list | preview, bottom edge, help, border. There is no context line.
+INNER = COLS - 2
+def listw(): return INNER - 1 - INNER // 2
+def main(f):  return f[3:-3]
+def left(f):  return [l[1:1 + listw()].rstrip() for l in main(f)]
+def right(f): return [l[listw() + 3:-1].rstrip() for l in main(f)]
+def prompt(f): return f[1].strip("│ ").rstrip()
+def counter(f): return f[0].strip("╭╮─ ")
+def helpline(f): return f[-2]
 def dump(title, f):
     print("--- %s ---" % title)
     for i, l in enumerate(f): print("%2d|%s" % (i, l))
@@ -168,7 +184,9 @@ print("== gotosession pty driver (%dx%d) ==" % (COLS, ROWS))
 # ---------- run 1: outside herdr: list, preview, filter, resume in place ----------
 s = Session(in_herdr=False)
 f = s.start(); dump("plain run", f)
-check(f[0].strip() == "gotosession (dev) ❯", "prompt line is clean: %r" % f[0])
+check(prompt(f) == "gotosession (dev) ❯", "prompt line is clean: %r" % f[1])
+check(f[0].startswith("╭") and f[-1].startswith("╰") and f[2].startswith("├") and "┬" in f[2],
+      "one frame: the input sits right under the top border, no title line")
 check(b"\x1b[?1049h" in s.raw, "program entered the alt screen")
 rows = [l for l in left(f) if l.strip()]
 check(len(rows) == 2, "sessions of removed directories are hidden: %d rows" % len(rows))
@@ -178,15 +196,16 @@ check("rewrite the cache layer" in rows[1], "an untitled session shows its first
 check("●" not in rows[0], "no live marks outside herdr")
 prev = "\n".join(right(f))
 check("❯ now the canonical url" in prev and "Done: the JSON-LD block" in prev, "preview shows the conversation")
-check("2 sessions" in f[-1] and "enter resume" in f[-1], "footer: %r" % f[-1])
+check(counter(f) == "2/2" and "enter resume" in helpline(f), "counter %r and help %r" % (counter(f), helpline(f)))
 
 f = s.send(CTRL_A); rows = [l for l in left(f) if l.strip()]
 check(len(rows) == 3 and "old work" in rows[2], "ctrl+a lists missing directories: %d rows" % len(rows))
 f = s.send(DOWN + DOWN + ENTER, 0.5)
-check(s.proc.poll() is None and "no longer exists" in f[-1], "a missing directory is not resumed: %r" % f[-1])
+check(s.proc.poll() is None and "no longer exists" in helpline(f), "a missing directory is not resumed: %r" % helpline(f))
 f = s.send(CTRL_A + b"cache", 0.5); dump("filtered", f)
 rows = [l for l in left(f) if l.strip()]
 check(len(rows) == 1 and rows[0].startswith("▌") and "cache layer" in rows[0], "typing filters: %r" % rows)
+check(counter(f) == "1/2", "the counter follows the filter: %r" % counter(f))
 s.send(ENTER, 0.3)
 check(s.finish() == 0, "clean exit after enter")
 check(s.calls() == ["claude|%s|--resume %s" % (tool, PLAIN)], "claude resumed in the session directory: %r" % s.calls())
@@ -218,7 +237,7 @@ s = Session(in_herdr=False, cwd=tool, args=("-here",))
 f = s.start(); dump("-here", f)
 rows = [l for l in left(f) if l.strip()]
 check(len(rows) == 1 and "cache layer" in rows[0], "-here narrows to the current directory: %r" % rows)
-check("tab everywhere" in f[-1], "footer offers to widen: %r" % f[-1])
+check("tab everywhere" in helpline(f) and counter(f).startswith("1/1 [in "), "help offers to widen and the scope sits by the counter: %r" % counter(f))
 f = s.send(TAB); rows = [l for l in left(f) if l.strip()]
 check(len(rows) == 2, "tab lists everywhere: %d rows" % len(rows))
 s.send(b"q", 0.2)
