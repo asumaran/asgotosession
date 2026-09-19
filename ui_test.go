@@ -342,3 +342,40 @@ func TestMouseWheelFollowsThePointer(t *testing.T) {
 		t.Errorf("wheel over the preview: cursor = %d, preview at %d", m.cursor, m.prevVP.YOffset())
 	}
 }
+
+func TestQuestionMarkExpandsTheHelp(t *testing.T) {
+	sessions, _ := fixture(t)
+	m := newModel(sessions, "", options{})
+	res, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 24})
+	m = res.(model)
+	lines := func(m model) []string { return strings.Split(ansi.Strip(m.render()), "\n") }
+	folded := lines(m)
+	if len(folded) != 24 || !strings.Contains(folded[22], "? help") || strings.Contains(folded[22], "pgup") {
+		t.Fatalf("folded help = %q (%d lines)", folded[22], len(folded))
+	}
+	m = press(m, typed("?")...)
+	open := lines(m)
+	if !m.help.ShowAll || len(open) != 24 || m.ti.Value() != "" {
+		t.Fatalf("? with an empty filter expands the help and is not typed: ShowAll=%v, %d lines, filter %q", m.help.ShowAll, len(open), m.ti.Value())
+	}
+	foot := strings.Join(open[len(open)-1-m.footH():], "\n")
+	for _, want := range []string{"pgup/pgdn", "⌥↑/⌥↓", "⇧↑/⇧↓", "resize the list", "resume", "esc/q"} {
+		if !strings.Contains(foot, want) {
+			t.Errorf("expanded help lacks %q:\n%s", want, foot)
+		}
+	}
+	if m.listVP.Height() != 24-frameRows(false)-m.footH() {
+		t.Errorf("the list gives way to the help: %d rows", m.listVP.Height())
+	}
+	// esc folds the help before it quits
+	res, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	m = res.(model)
+	if m.help.ShowAll || cmd != nil && cmd() == tea.Quit() {
+		t.Errorf("esc folds the help first")
+	}
+	// with text in the filter ? is text
+	m = press(m, typed("x?")...)
+	if m.help.ShowAll || m.ti.Value() != "x?" {
+		t.Errorf("filter = %q, ShowAll = %v, want ? typed as text", m.ti.Value(), m.help.ShowAll)
+	}
+}
