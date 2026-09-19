@@ -5,11 +5,7 @@ package main
 // lands. Matched positions are byte offsets into the displayed string, as
 // sahilm/fuzzy reports them.
 
-import (
-	"strings"
-
-	"charm.land/lipgloss/v2"
-)
+import ()
 
 // sessionRow is one session in the list.
 type sessionRow struct {
@@ -75,39 +71,4 @@ func bestIndex(n int, score func(int) int) int {
 		}
 	}
 	return best
-}
-
-// highlight styles the matched bytes of s and applies base to the rest. A
-// match keeps what base says (the selected row's background, a bold title)
-// and adds the match color and the underline, as asgitlog does.
-func highlight(s string, idx []int, base lipgloss.Style) string {
-	if len(idx) == 0 {
-		return base.Render(s)
-	}
-	set := make(map[int]bool, len(idx))
-	for _, i := range idx {
-		set[i] = true
-	}
-	var b, run strings.Builder
-	flush := func() {
-		if run.Len() > 0 {
-			b.WriteString(base.Render(run.String()))
-			run.Reset()
-		}
-	}
-	for i, r := range s {
-		if set[i] {
-			flush()
-			b.WriteString(matchOver(base).Render(string(r)))
-		} else {
-			run.WriteRune(r)
-		}
-	}
-	flush()
-	return b.String()
-}
-
-// matchOver is the match style on top of base.
-func matchOver(base lipgloss.Style) lipgloss.Style {
-	return base.Foreground(stMatch.GetForeground()).Underline(true)
 }

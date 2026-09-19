@@ -47,9 +47,6 @@ func padLeft(s string, width int) string {
 var (
 	stPrompt = lipgloss.NewStyle().Foreground(lipgloss.Color("13")).Bold(true)
 	stDev    = lipgloss.NewStyle().Foreground(lipgloss.Color("208")).Bold(true)
-	stSel    = lipgloss.NewStyle().Background(lipgloss.Color("8")).Bold(true)
-	// a filter match: asgitlog's look, also over the selected row's background
-	stMatch  = lipgloss.NewStyle().Foreground(lipgloss.Color("13")).Underline(true)
 	stHeader = lipgloss.NewStyle().Foreground(lipgloss.Color("6")).Bold(true)
 	stDim    = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
 	stTitle  = lipgloss.NewStyle().Bold(true)
@@ -330,7 +327,7 @@ func (m *model) sessionLine(r sessionRow, selected bool, width int) string {
 	if selected {
 		line := stSel.Render("▌"+mark) + highlight(padRight(r.s.label(), titleW), r.titleIdx, stSel) + stSel.Render(" ")
 		if pathW > 0 {
-			line += selPad(pathCells(dir, r.pathIdx, pathW, true), pathW) + stSel.Render(" ")
+			line += selPad(pathCells(dir, len(dir), r.pathIdx, pathW, true), pathW) + stSel.Render(" ")
 		}
 		return selPad(truncate(line+stSel.Render(age), width), width)
 	}
@@ -343,67 +340,9 @@ func (m *model) sessionLine(r sessionRow, selected bool, width int) string {
 	}
 	line := " " + stLive.Render(mark) + padRight(highlight(r.s.label(), r.titleIdx, base), titleW) + " "
 	if pathW > 0 {
-		line += padRight(pathCells(dir, r.pathIdx, pathW, false), pathW) + " "
+		line += padRight(pathCells(dir, len(dir), r.pathIdx, pathW, false), pathW) + " "
 	}
 	return truncate(line+stDim.Render(age), width)
-}
-
-// pathCells fits a path into width. A path that does not fit loses its head,
-// not its tail, so the worktree name is always visible. The path is dimmed,
-// or takes the selected row's background, and the matched bytes are
-// highlighted over either.
-func pathCells(path string, idx []int, width int, selected bool) string {
-	plain := stDim
-	if selected {
-		plain = stSel
-	}
-	type cell struct {
-		r   rune
-		off int
-	}
-	cells := make([]cell, 0, len(path))
-	for off, r := range path {
-		cells = append(cells, cell{r, off})
-	}
-	cut := false
-	if len(cells) > width && width > 1 {
-		cells = cells[len(cells)-(width-1):]
-		cut = true
-	}
-	matched := make(map[int]bool, len(idx))
-	for _, i := range idx {
-		matched[i] = true
-	}
-	var b, run strings.Builder
-	flush := func() {
-		if run.Len() == 0 {
-			return
-		}
-		b.WriteString(plain.Render(run.String()))
-		run.Reset()
-	}
-	if cut {
-		run.WriteString("…")
-	}
-	for _, c := range cells {
-		if matched[c.off] {
-			flush()
-			b.WriteString(matchOver(plain).Render(string(c.r)))
-			continue
-		}
-		run.WriteRune(c.r)
-	}
-	flush()
-	return b.String()
-}
-
-// selPad pads an already styled piece of the selected row to width, so the
-// row's background has no gaps.
-func selPad(s string, width int) string {
-	if n := width - ansi.StringWidth(s); n > 0 {
-		s += stSel.Render(strings.Repeat(" ", n))
-	}
-	return s
 }
 
 func (m *model) setCursor(i int) {
@@ -622,7 +561,7 @@ func (m model) counter() string {
 	var scope []string
 	if m.here {
 		// A long directory loses its head, not its tail, like the list's paths.
-		scope = append(scope, "in "+pathCells(tildePath(m.hereDir, m.home), nil, max(10, m.width/3), false))
+		scope = append(scope, "in "+pathTail(tildePath(m.hereDir, m.home), max(10, m.width/3)))
 	}
 	if m.all {
 		scope = append(scope, "+missing dirs")

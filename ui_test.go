@@ -139,13 +139,6 @@ func TestSessionLine(t *testing.T) {
 	}
 }
 
-func TestPathCellsKeepsTail(t *testing.T) {
-	got := ansi.Strip(pathCells("~/wt/monorepo-front/fix-ESHOP-551", nil, 14, false))
-	if got != "…fix-ESHOP-551" {
-		t.Errorf("got %q", got)
-	}
-}
-
 func TestSelectedRowKeepsItsMatches(t *testing.T) {
 	sessions, _ := fixture(t)
 	m := newModel(sessions, "", options{query: "canonical"})
