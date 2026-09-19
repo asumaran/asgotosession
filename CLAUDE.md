@@ -16,7 +16,7 @@ after the TUI has quit.
 
 Distributed as a herdr plugin (`herdr plugin install asumaran/asgotosession`;
 the manifest's `[[build]]` runs `scripts/fetch-binary.sh`). Each GitHub Release
-attaches `asgotosession-darwin-arm64`. There is no published library.
+attaches the `asgotosession-<os>-<arch>` binaries (macOS and Linux, arm64 and amd64). There is no published library.
 
 ## Data source
 
@@ -183,5 +183,5 @@ JSON, like the real ones.
 `scripts/release.sh <X.Y.Z>` — clean-tree + vet/build/test gate, CHANGELOG
 generation from commit subjects, manifest version sync, commit + tag + GitHub
 release; CI (`.github/workflows/release.yml`) attaches
-`asgotosession-darwin-arm64`. Releasing never touches the linked plugin's
+the `asgotosession-<os>-<arch>` binaries (macOS and Linux, arm64 and amd64). Releasing never touches the linked plugin's
 `./asgotosession`; rebuild locally to keep testing dev code.

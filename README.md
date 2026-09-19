@@ -25,7 +25,7 @@ popup, same fuzzy search.
 
 ## Requirements
 
-Claude Code (the `claude` CLI), macOS and, for the popup, herdr >= 0.7.5.
+Claude Code (the `claude` CLI), macOS or Linux and, for the popup, herdr >= 0.7.5.
 The sessions are read from the transcripts Claude Code already keeps under
 `~/.claude/projects`; there is nothing to set up. `CLAUDE_PROJECTS_DIR` points
 it at another directory.
@@ -147,4 +147,4 @@ from the manifest.
 `scripts/release.sh <X.Y.Z>` gates on a clean tree + green vet/build/test,
 generates the CHANGELOG entry from commit subjects, syncs the manifest
 version, commits, tags and publishes the GitHub release; CI then attaches
-`asgotosession-darwin-arm64`, the asset `fetch-binary.sh` downloads on installs.
+the `asgotosession-<os>-<arch>` binaries (macOS and Linux, arm64 and amd64), the assets `fetch-binary.sh` downloads on installs.
