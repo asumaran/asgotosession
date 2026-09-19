@@ -11,16 +11,16 @@ Sibling of [gotonotes](https://github.com/asumaran/gotonotes),
 popup, same fuzzy search.
 
 ```
-╭──────────────────────────────────────────────────────────────────────────────────────── 358/358 ─╮
-│ gotosession ❯                                                                                    │
-├────────────────────────────────────────────────────────────┬─────────────────────────────────────┤
-│▌●Checkout form validation   …fix-checkout-form-validation 17m│ ❯ now the error messages            │
-│ ●Release plan               ~/wt/shop/chore-release-plan 46m│                                     │
-│  Remove the old fzf helpers ~/Developer/dotfiles          1h│ Done: each field reports its own    │
-│  Cache layer rewrite        ~/Developer/tool              4h│ error under the input. …            │
-├────────────────────────────────────────────────────────────┴───────────────────────────── 12/12 ─┤
-│ type filter • enter resume • tab this dir • ^a missing dirs • ⇧↓ scroll preview • esc/q quit     │
-╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─────────────────────────────────────────────────────────────────────────────────────────────────── 358/358 ─╮
+│ gotosession ❯                                                                                               │
+├────────────────────────────────────────────────────────────┬────────────────────────────────────────────────┤
+│▌●Checkout form validation   …fix-checkout-form-validation 17m│ ❯ now the error messages                       │
+│ ●Release plan               ~/wt/shop/chore-release-plan 46m│                                                │
+│  Remove the old fzf helpers ~/Developer/dotfiles          1h│ Done: each field reports its own               │
+│  Cache layer rewrite        ~/Developer/tool              4h│ error under the input. …                       │
+├────────────────────────────────────────────────────────────┴──────────────────────────────────────── 12/12 ─┤
+│ type filter • enter resume • tab this dir • ^a missing dirs • ⇧↓ scroll preview • ⇧←/⇧→ resize • esc/q quit │
+╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ## Requirements
@@ -81,6 +81,7 @@ session.
 | `ctrl+a` | also list sessions whose directory no longer exists, and back |
 | `↑/↓`, `ctrl+p`/`ctrl+n` | move the cursor |
 | `shift+↓`/`shift+↑`, PgDn/PgUp, mouse wheel | scroll the preview |
+| `shift+←`/`shift+→` | resize the list; the split is remembered (the list takes a quarter of the width by default) |
 | click | select a row |
 | `esc`, `q` with an empty filter | close |
 

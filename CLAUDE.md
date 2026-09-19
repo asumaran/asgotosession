@@ -59,6 +59,11 @@ are split by concern:
 - `frame.go` — the single-frame layout shared by the family: `hline`, `fit`,
   `framed`, `frameHead`, `splitMain`, `scrollPos` and the section rows (`mainY`,
   `listY`, `frameRows`, each with or without the optional context line).
+- `split.go` — the divider between the list and the preview: `loadSplit`,
+  `saveSplit`, `stepSplit`, `splitWidths`. The file is copied, not imported:
+  the same one ships in gotochanged, gotonotes, gotopr and gotojira (all under
+  github.com/asumaran), and there is no shared library. A pull request only
+  needs to change it here; the maintainer ports the change to the other copies.
 - `ui.go` — the bubbletea model/Update/View, toggles, mouse, styles,
   `pathCells`.
 - `preview.go` — session preview as a `tea.Cmd` (tail of the transcript,
@@ -92,6 +97,13 @@ Keybinding (user config): `prefix+y` / `ctrl+alt+h` → `plugin_action`
   here. The list starts on screen row `listY`, one cell in from the left side,
   which is what the click-to-row math uses. Errors and notices take the help
   line.
+- **Resizable list**: `shift+←/→` move the divider in 5% steps, as in
+  asgitlog. The setting is the PREVIEW's share of the width, clamped to
+  30-85 and saved as `split-columns` in the state dir; the default is 75
+  (list 25%, preview 75%), the same in every picker of the family. Rows
+  must degrade for a narrow list instead of truncating their last columns.
+  A list too narrow for a readable title (under 24 cells) drops the directory
+  column, which the preview shows anyway (`sessionLine`).
 - **Scanning matches raw bytes**, decoding only title lines, the first cwd
   line and candidate prompt lines. Transcripts run to tens of megabytes and
   almost every line is a message body; decoding them all is what made the bash

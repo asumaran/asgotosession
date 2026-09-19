@@ -70,11 +70,13 @@ type keyMap struct {
 	Quit     key.Binding
 	PrevUp   key.Binding
 	PrevDown key.Binding
+	Shrink   key.Binding
+	Grow     key.Binding
 	Filter   key.Binding
 }
 
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Filter, k.Open, k.Here, k.Toggle, k.PrevDown, k.Quit}
+	return []key.Binding{k.Filter, k.Open, k.Here, k.Toggle, k.PrevDown, k.Shrink, k.Quit}
 }
 func (k keyMap) FullHelp() [][]key.Binding { return [][]key.Binding{k.ShortHelp()} }
 
@@ -88,6 +90,8 @@ func defaultKeys() keyMap {
 		Quit:     key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc/q", "quit")),
 		PrevUp:   key.NewBinding(key.WithKeys("shift+up", "pgup"), key.WithHelp("⇧↑", "")),
 		PrevDown: key.NewBinding(key.WithKeys("shift+down", "pgdown"), key.WithHelp("⇧↓", "scroll preview")),
+		Shrink:   key.NewBinding(key.WithKeys("shift+left"), key.WithHelp("⇧←/⇧→", "resize")),
+		Grow:     key.NewBinding(key.WithKeys("shift+right")),
 		// Help-only entry: a binding without keys is disabled and the help
 		// bubble would skip it. Nothing ever matches against it.
 		Filter: key.NewBinding(key.WithKeys("type"), key.WithHelp("type", "filter")),
@@ -125,6 +129,7 @@ type model struct {
 	keys   keyMap
 	width  int
 	height int
+	split  int // the preview's share of the width, percent
 
 	// preview render cache
 	renders map[string]string
@@ -147,6 +152,7 @@ func newModel(sessions []*session, loadErr string, opts options) model {
 		prevVP:   viewport.New(viewport.WithWidth(40), viewport.WithHeight(20)),
 		help:     help.New(),
 		keys:     defaultKeys(),
+		split:    loadSplit(stateDir()),
 		renders:  map[string]string{},
 		width:    94,
 		height:   24,
@@ -197,11 +203,11 @@ func (m *model) innerW() int { return max(20, m.width-2) }
 
 // detailsW is the preview's share of the main section, including the cell of
 // padding on each side; prevW is the text width inside it.
-func (m *model) detailsW() int { return max(12, m.innerW()/2) }
+func (m *model) detailsW() int { _, w := splitWidths(m.innerW(), m.split); return w }
 func (m *model) prevW() int    { return max(10, m.detailsW()-2) }
 
 // listW is what the divider leaves for the list.
-func (m *model) listW() int { return max(10, m.innerW()-1-m.detailsW()) }
+func (m *model) listW() int { w, _ := splitWidths(m.innerW(), m.split); return w }
 
 // bodyH is the height of the main section: everything but the frame's own
 // lines and the help.
@@ -213,6 +219,15 @@ func (m *model) resize() {
 	m.prevVP.SetWidth(m.prevW())
 	m.prevVP.SetHeight(m.bodyH())
 	m.help.SetWidth(max(0, m.width-4))
+}
+
+// resizeList moves the divider between the list and the preview by one step.
+func (m *model) resizeList(grow bool) tea.Cmd {
+	m.split = stepSplit(m.split, grow)
+	saveSplit(stateDir(), m.split)
+	m.resize()
+	m.renderList()
+	return m.updatePreview()
 }
 
 // ---- filtering ----
@@ -293,16 +308,17 @@ func (m *model) renderList() {
 }
 
 // sessionLine renders one row in fixed columns: live mark, title, directory,
-// age. The selected row is padded to the full width before styling so its
-// background spans the whole column.
+// age. A list too narrow for a readable title drops the directory, which the
+// preview shows anyway. The selected row is padded to the full width before
+// styling so its background spans the whole column.
 func (m *model) sessionLine(r sessionRow, selected bool, width int) string {
 	pathW := (width - 2) * 2 / 5
 	if pathW < 12 {
 		pathW = 12
 	}
 	titleW := width - 2 - 1 - pathW - 1 - ageColW
-	if titleW < 8 {
-		titleW = 8
+	if titleW < 24 {
+		pathW, titleW = 0, max(8, titleW+pathW+1)
 	}
 	dir := tildePath(r.s.cwd, m.home)
 	age := padLeft(compactAge(r.s.last, m.now), ageColW)
@@ -311,9 +327,11 @@ func (m *model) sessionLine(r sessionRow, selected bool, width int) string {
 		mark = "●"
 	}
 	if selected {
-		line := "▌" + mark + padRight(r.s.label(), titleW) + " " +
-			padRight(pathCells(dir, nil, pathW, false), pathW) + " " + age
-		return stSel.Render(padRight(line, width))
+		line := "▌" + mark + padRight(r.s.label(), titleW) + " "
+		if pathW > 0 {
+			line += padRight(pathCells(dir, nil, pathW, false), pathW) + " "
+		}
+		return stSel.Render(padRight(line+age, width))
 	}
 	base := stTitle
 	switch {
@@ -322,9 +340,11 @@ func (m *model) sessionLine(r sessionRow, selected bool, width int) string {
 	case r.s.title == "":
 		base = lipgloss.NewStyle() // a prompt standing in for a title: not bold
 	}
-	title := padRight(highlight(r.s.label(), r.titleIdx, base), titleW)
-	path := padRight(pathCells(dir, r.pathIdx, pathW, true), pathW)
-	return truncate(" "+stLive.Render(mark)+title+" "+path+" "+stDim.Render(age), width)
+	line := " " + stLive.Render(mark) + padRight(highlight(r.s.label(), r.titleIdx, base), titleW) + " "
+	if pathW > 0 {
+		line += padRight(pathCells(dir, r.pathIdx, pathW, true), pathW) + " "
+	}
+	return truncate(line+stDim.Render(age), width)
 }
 
 // pathCells fits a path into width. A path that does not fit loses its head,
@@ -515,6 +535,10 @@ func (m model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.setCursor(m.cursor + 1)
 		m.renderList()
 		return m, m.updatePreview()
+	case key.Matches(msg, m.keys.Shrink):
+		return m, m.resizeList(false)
+	case key.Matches(msg, m.keys.Grow):
+		return m, m.resizeList(true)
 	case key.Matches(msg, m.keys.PrevUp):
 		m.prevVP.ScrollUp(3)
 		return m, nil

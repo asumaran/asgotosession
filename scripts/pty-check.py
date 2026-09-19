@@ -166,7 +166,9 @@ class Session:
 # One frame (see frame.go): top border with the counter, input, main edge,
 # list | preview, bottom edge, help, border. There is no context line.
 INNER = COLS - 2
-def listw(): return INNER - 1 - INNER // 2
+def listw(): return max(COLS - 3 - (COLS - 2) * 75 // 100, 10)   # the default split: list 25%, preview 75%
+def divider(f): return next(l for l in f if l.startswith("├") and "┬" in l).index("┬")
+SHIFT_RIGHT, SHIFT_LEFT = b"\x1b[1;2C", b"\x1b[1;2D"
 def main(f):  return f[3:-3]
 def left(f):  return [l[1:1 + listw()].rstrip() for l in main(f)]
 def right(f): return [l[listw() + 3:-1].rstrip() for l in main(f)]
@@ -190,8 +192,8 @@ check(f[0].startswith("╭") and f[-1].startswith("╰") and f[2].startswith("�
 check(b"\x1b[?1049h" in s.raw, "program entered the alt screen")
 rows = [l for l in left(f) if l.strip()]
 check(len(rows) == 2, "sessions of removed directories are hidden: %d rows" % len(rows))
-check(rows[0].startswith("▌ Structured data markup") and "ESHOP-551-structured-data" in rows[0],
-      "newest first, ai title and directory tail shown: %r" % rows[0])
+check(rows[0].startswith("▌ Structured data markup") and rows[0].endswith("1m"),
+      "newest first, ai title and age shown: %r" % rows[0])
 check("rewrite the cache layer" in rows[1], "an untitled session shows its first prompt: %r" % rows[1])
 check("●" not in rows[0], "no live marks outside herdr")
 prev = "\n".join(right(f))
@@ -242,6 +244,25 @@ f = s.send(TAB); rows = [l for l in left(f) if l.strip()]
 check(len(rows) == 2, "tab lists everywhere: %d rows" % len(rows))
 s.send(b"q", 0.2)
 check(s.finish() == 0 and s.calls() == [], "q quits with an empty filter and resumes nothing")
+
+# ---------- run 5: the divider moves and stays where it was left ----------
+s = Session(in_herdr=False)
+f = s.start(); at = divider(f)
+f = s.send(SHIFT_RIGHT, 0.6); grown = divider(f)
+check(grown > at and all(len(l) == COLS for l in f), "shift+right grows the list: %d -> %d" % (at, grown))
+f = s.send(SHIFT_LEFT, 0.6)
+check(divider(f) == at, "shift+left shrinks it back: %d" % divider(f))
+for _ in range(5): f = s.send(SHIFT_RIGHT, 0.3)
+row = f[3][1:divider(f)]
+check("Structured data markup" in row and "ESHOP-551-structured-data" in row, "a wide list shows the directory tail too: %r" % row)
+for _ in range(5): s.send(SHIFT_LEFT, 0.3)
+s.send(SHIFT_RIGHT, 0.6)
+s.send(b"q", 0.2); s.finish()
+s = Session(in_herdr=False)
+f = s.start()
+check(divider(f) == grown, "the next run opens with the same split: %d" % divider(f))
+s.send(SHIFT_LEFT, 0.6)
+s.send(b"q", 0.2); s.finish()
 
 shutil.rmtree(SANDBOX, ignore_errors=True)
 print("\n%d failure(s)" % len(failures))
