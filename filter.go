@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
-	"github.com/sahilm/fuzzy"
 )
 
 // sessionRow is one session in the list.
@@ -49,13 +48,13 @@ func filterSessions(sessions []*session, q, home string) []sessionRow {
 		}
 		return r
 	}
-	for _, mt := range fuzzy.Find(q, titles) {
+	for _, mt := range findTight(q, titles) {
 		hit(mt.Index, mt.Score).titleIdx = append([]int(nil), mt.MatchedIndexes...)
 	}
-	for _, mt := range fuzzy.Find(q, paths) {
+	for _, mt := range findTight(q, paths) {
 		hit(mt.Index, mt.Score).pathIdx = append([]int(nil), mt.MatchedIndexes...)
 	}
-	for _, mt := range fuzzy.Find(q, hidden) {
+	for _, mt := range findTight(q, hidden) {
 		hit(mt.Index, mt.Score)
 	}
 	for i := range sessions {
