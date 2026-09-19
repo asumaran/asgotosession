@@ -1,3 +1,7 @@
+## v0.5.0 (2026-09-19)
+
+* feat: support linux and share the release process (898898e)
+
 ## v0.4.0 (2026-09-19)
 
 * refactor: rename gotosession to asgotosession (50d254c)
