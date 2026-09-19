@@ -11,16 +11,18 @@ Sibling of [asgotonotes](https://github.com/asumaran/asgotonotes),
 popup, same fuzzy search.
 
 ```
-╭─────────────────────────────────────────────────────────────────────────────────────────────────── 358/358 ─╮
-│ asgotosession ❯                                                                                             │
-├────────────────────────────────────────────────────────────┬────────────────────────────────────────────────┤
-│▌●Checkout form validation  …fix-checkout-form-validation 17m│ ❯ now the error messages                      │
-│ ●Release plan               ~/wt/shop/chore-release-plan 46m│                                               │
-│  Remove the old fzf helpers ~/Developer/dotfiles          1h│ Done: each field reports its own              │
-│  Cache layer rewrite        ~/Developer/tool              4h│ error under the input. …                      │
-├────────────────────────────────────────────────────────────┴──────────────────────────────────────── 12/12 ─┤
-│ type filter • enter resume • tab this dir • ^a missing dirs • ⇧↓ scroll preview • ⇧←/⇧→ resize • esc/q quit │
-╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭──────────────────────────────────────────────────────────────────────────────────────────────────── 358/358 ─╮
+│ asgotosession ❯                                                                                              │
+├───────────────────────────┬──────────────────────────────────────────────────────────────────────────────────┤
+│▌●Checkout form valid…  17m│ ~/wt/shop/fix-checkout-form-validation                                           │
+│ ●Release plan          46m│ fix/checkout-form-validation · 19/09 10:42 · 3f9c2a1e                            │
+│  Remove the old fzf …   1h│                                                                                  │
+│  Cache layer rewrite    4h│ ❯ now the error messages                                                         │
+│                           │                                                                                  │
+│                           │ Done: each field reports its own error under the input. …                        │
+├───────────────────────────┴────────────────────────────────────────────────────────────────────────── 12/12 ─┤
+│ type filter • enter resume • tab this dir • ^a missing dirs • ⇧↓ scroll preview • ⇧←/⇧→ resize • esc/q quit  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ## Requirements
@@ -59,7 +61,8 @@ ln -s "$(herdr plugin list --json | jq -r '.result.plugins[] | select(.plugin_id
 ## Usage
 
 The filter input is focused on open, so just type. One row per session,
-newest activity first: title, directory and age. The title is the one you gave
+newest activity first: title, directory and age (a narrow list leaves the
+directory to the preview). The title is the one you gave
 the session, otherwise the one Claude generated, otherwise the first prompt
 you typed. A `●` marks the sessions that are running in some herdr pane right
 now. The filter matches the title, the directory, the branch and the session
@@ -136,7 +139,7 @@ go build -o asgotosession .   # local build (plugin runs ./asgotosession from th
 ./asgotosession -dump -query eshop   # matches with their scores
 go vet ./... && go test ./...
 scripts/pty-check.py ./asgotosession   # end-to-end TUI check on a pty (python3 + pyte)
-herdr plugin link ~/Developer/asgotosession   # register the working copy (no build step)
+herdr plugin link "$PWD"   # register the working copy (no build step)
 ```
 
 `ASGOTOSESSION_POPUP_WIDTH` / `ASGOTOSESSION_POPUP_HEIGHT` override the popup size

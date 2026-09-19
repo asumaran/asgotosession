@@ -78,7 +78,7 @@ go build -o asgotosession .    # plugin runs ./asgotosession from the repo root
 ./asgotosession -dump -all     # include sessions whose directory is gone
 ./asgotosession -dump -query x # matches with scores
 go vet ./... && go test ./...
-herdr plugin link ~/Developer/asgotosession   # link does NOT run [[build]]; go build yourself
+herdr plugin link "$PWD"   # link does NOT run [[build]]; go build yourself
 ```
 
 Keybinding (user config): `prefix+y` / `ctrl+alt+h` → `plugin_action`
