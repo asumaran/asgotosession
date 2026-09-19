@@ -80,7 +80,8 @@ session.
 | `tab` | only the sessions started in the directory the popup was opened from (or below it), and back |
 | `ctrl+a` | also list sessions whose directory no longer exists, and back |
 | `↑/↓`, `ctrl+p`/`ctrl+n` | move the cursor |
-| `shift+↓`/`shift+↑`, PgDn/PgUp, mouse wheel | scroll the preview |
+| `shift+↓`/`shift+↑`, PgDn/PgUp, mouse wheel over the preview | scroll the preview |
+| mouse wheel over the list | move the cursor |
 | `shift+←`/`shift+→` | resize the list; the split is remembered (the list takes a quarter of the width by default) |
 | click | select a row |
 | `esc`, `q` with an empty filter | close |

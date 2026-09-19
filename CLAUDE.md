@@ -147,8 +147,10 @@ Keybinding (user config): `prefix+y` / `ctrl+alt+h` → `plugin_action`
   sidechains, and lands scrolled to the bottom. Cached per (file, width,
   mtime). There is no markdown rendering, so the program never needs the
   terminal background color.
-- **Mouse**: the wheel always scrolls the preview; a left click on a list row
-  moves the cursor and never resumes anything (same reasoning as gotopr).
+- **Mouse**: the wheel follows the pointer, as in asgitlog: over the list
+  (`overList`) it moves the cursor through the same code as the arrow keys,
+  anywhere else it scrolls the preview. A left click on a list row moves the
+  cursor and never resumes anything.
 - **Alt screen and mouse mode** are declared per frame in `View()`; there is
   no `tea.WithAltScreen` program option in v2.
 
