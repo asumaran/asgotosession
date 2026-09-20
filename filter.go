@@ -33,29 +33,10 @@ func filterSessions(sessions []*session, q, home string) []sessionRow {
 		paths[i] = tildePath(s.cwd, home)
 		hidden[i] = s.branch + " " + s.id
 	}
-	hits := map[int]*sessionRow{}
-	hit := func(i, score int) *sessionRow {
-		r, ok := hits[i]
-		if !ok {
-			r = &sessionRow{s: sessions[i], score: score}
-			hits[i] = r
-		} else if score > r.score {
-			r.score = score
-		}
-		return r
-	}
-	for _, mt := range findTight(q, titles) {
-		hit(mt.Index, mt.Score).titleIdx = append([]int(nil), mt.MatchedIndexes...)
-	}
-	for _, mt := range findTight(q, paths) {
-		hit(mt.Index, mt.Score).pathIdx = append([]int(nil), mt.MatchedIndexes...)
-	}
-	for _, mt := range findTight(q, hidden) {
-		hit(mt.Index, mt.Score)
-	}
+	hits := findFields(q, titles, paths, hidden)
 	for i := range sessions {
-		if r, ok := hits[i]; ok {
-			rows = append(rows, *r)
+		if h, ok := hits[i]; ok {
+			rows = append(rows, sessionRow{s: sessions[i], score: h.Score, titleIdx: h.Any[0], pathIdx: h.Any[1]})
 		}
 	}
 	return rank(rows, func(r sessionRow) int { return r.score }, nil) // a search result: best match first
