@@ -1,3 +1,7 @@
+## v0.11.0 (2026-09-20)
+
+* feat(ui): open an options and keys panel with f1 (f66aeda)
+
 ## v0.10.0 (2026-09-20)
 
 * feat(keys): copy the session id with ctrl+y (ff2ad58)
