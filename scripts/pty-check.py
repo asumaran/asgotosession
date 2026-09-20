@@ -11,7 +11,7 @@ starts claude.
 
 Usage: scripts/pty-check.py ./asgotosession   (needs python3 + pyte)
 """
-import atexit, fcntl, json, os, pty, select, shutil, signal, struct, subprocess, sys, tempfile, termios, time
+import atexit, fcntl, json, os, pty, select, shutil, signal, struct, subprocess, sys, tempfile, termios, time, re
 import pyte
 
 BIN = os.path.abspath(sys.argv[1])
@@ -173,11 +173,16 @@ def main(f):  return f[3:-3]
 def left(f):  return [l[1:1 + listw()].rstrip() for l in main(f)]
 def right(f): return [l[listw() + 3:-1].rstrip() for l in main(f)]
 # The input line: the prompt and what is typed (or the placeholder). A build
-# that is not a release says "(dev)" after the counter, on the edge over the
+# that is not a release says "(dev)" at the end of the edge over the
 # input; devmark() says so.
 def prompt(f): return f[1].strip("│ ").rstrip().removesuffix("(dev)").rstrip()
 def devmark(f): return any(l.rstrip("╮┤─ ").endswith("(dev)") for l in f[:4])
-def counter(f): return f[0].strip("╭╮─ ").removesuffix("(dev)").rstrip()
+def counter(f):
+    for l in f:
+        m = re.match(r"├─+ (\d+/\d+) ─[┴┤]", l)
+        if m: return m.group(1)
+    return ""
+def status(f): return f[0].strip("╭╮─ ").removesuffix("(dev)").rstrip()
 def helpline(f): return f[-2]
 def dump(title, f):
     print("--- %s ---" % title)
@@ -191,7 +196,7 @@ print("== asgotosession pty driver (%dx%d) ==" % (COLS, ROWS))
 s = Session(in_herdr=False)
 f = s.start(); dump("plain run", f)
 check(prompt(f) == "asgotosession ❯ Search by title, directory, branch…", "prompt line is clean: %r" % f[1])
-check(devmark(f), "a dev build says so after the counter, on the edge over the input")
+check(devmark(f), "a dev build says so on the edge over the input")
 check(f[0].startswith("╭") and f[-1].startswith("╰") and f[2].startswith("├") and "┬" in f[2],
       "one frame: the input sits right under the top border, no title line")
 check(b"\x1b[?1049h" in s.raw, "program entered the alt screen")
@@ -244,7 +249,7 @@ s = Session(in_herdr=False, cwd=tool, args=("-here",))
 f = s.start(); dump("-here", f)
 rows = [l for l in left(f) if l.strip()]
 check(len(rows) == 1 and "cache layer" in rows[0], "-here narrows to the current directory: %r" % rows)
-check("tab everywhere" in helpline(f) and counter(f).startswith("1/1 [in "), "help offers to widen and the scope sits by the counter: %r" % counter(f))
+check("tab everywhere" in helpline(f) and counter(f) == "1/1" and status(f).startswith("[in "), "help offers to widen and the scope sits on the top border: %r %r" % (counter(f), status(f)))
 f = s.send(TAB); rows = [l for l in left(f) if l.strip()]
 check(len(rows) == 2, "tab lists everywhere: %d rows" % len(rows))
 s.send(b"q", 0.2)

@@ -219,8 +219,8 @@ func TestFrameGeometry(t *testing.T) {
 		if !strings.HasPrefix(plain[0], "╭") || !strings.HasPrefix(plain[len(plain)-1], "╰") || !strings.HasPrefix(plain[1], "│ asgotosession") {
 			t.Errorf("%v: frame corners missing", size)
 		}
-		if !strings.Contains(plain[0], "2/2") || !strings.Contains(plain[mainY(false)], "┬") {
-			t.Errorf("%v: counter or divider misplaced:\n%s\n%s", size, plain[0], plain[mainY(false)])
+		if !strings.Contains(plain[len(plain)-3], "─ 2/2 ─┴") || !strings.Contains(plain[mainY(false)], "┬") {
+			t.Errorf("%v: counter or divider misplaced:\n%s\n%s", size, plain[len(plain)-3], plain[mainY(false)])
 		}
 		if !strings.Contains(plain[listY(false)], "▌●Canon") {
 			t.Errorf("%v: first row is not at listY: %q", size, plain[listY(false)])
@@ -246,21 +246,27 @@ func TestClickSelectsRow(t *testing.T) {
 	}
 }
 
-// TestCounterCarriesTheScope: there is no context line; what the list is
-// narrowed or widened to sits next to the counter, on the top border.
-func TestCounterCarriesTheScope(t *testing.T) {
+// TestStatusCarriesTheScope: there is no context line; what the list is
+// narrowed or widened to sits on the top border, the counter under the list.
+func TestStatusCarriesTheScope(t *testing.T) {
 	sessions, dir := fixture(t)
 	m := newModel(sessions, "", options{dir: dir})
-	if c := ansi.Strip(m.counter()); c != "2/2" {
-		t.Errorf("default counter = %q", c)
+	if c, s := ansi.Strip(m.counter()), m.status(); c != "2/2" || s != "" {
+		t.Errorf("default counter = %q, status = %q", c, s)
 	}
 	m = press(m, keyTab, keyCtrlA)
-	c := ansi.Strip(m.counter())
-	if !strings.HasPrefix(c, "3/3 [in ") || !strings.HasSuffix(c, ", +missing dirs]") {
+	if c := ansi.Strip(m.counter()); c != "3/3" {
 		t.Errorf("scoped counter = %q", c)
 	}
-	if top := strings.Split(ansi.Strip(m.render()), "\n")[0]; !strings.HasPrefix(top, "╭") || !strings.Contains(top, "3/3 [in ") {
+	if s := ansi.Strip(m.status()); !strings.HasPrefix(s, "[in ") || !strings.HasSuffix(s, ", +missing dirs]") {
+		t.Errorf("scope = %q", s)
+	}
+	plain := strings.Split(ansi.Strip(m.render()), "\n")
+	if top := plain[0]; !strings.HasPrefix(top, "╭") || !strings.Contains(top, " [in ") || strings.Contains(top, "3/3") {
 		t.Errorf("top border = %q", top)
+	}
+	if edge := plain[len(plain)-3]; !strings.Contains(edge, "─ 3/3 ─┴") {
+		t.Errorf("edge under the list = %q", edge)
 	}
 }
 

@@ -526,9 +526,9 @@ func (m model) View() tea.View {
 // line: what the list is narrowed to fits next to the counter.
 func (m model) render() string {
 	w := m.width
-	out := frameHead(w, "", withDevMark(m.counter()), m.ti.View())
+	out := frameHead(w, "", withDevMark(m.status()), m.ti.View())
 	out = append(out, splitMain(m.listLines(), strings.Split(m.prevVP.View(), "\n"),
-		m.listW(), m.detailsW(), listPos(&m.listVP, nil), scrollPos(&m.prevVP))...)
+		m.listW(), m.detailsW(), m.counter(), scrollPos(&m.prevVP))...)
 	for _, l := range m.footLines() {
 		out = append(out, framed(w, l))
 	}
@@ -536,10 +536,15 @@ func (m model) render() string {
 	return strings.Join(out, "\n")
 }
 
-// counter is the matches/total count of the current mode, followed by what
-// the list is narrowed or widened to (the scope, as in asgitlog).
+// counter is the matches/total count of the current mode, for the edge under
+// the list.
 func (m model) counter() string {
-	s := stCount.Render(strconv.Itoa(len(m.rows)) + "/" + strconv.Itoa(len(m.visible())))
+	return stCount.Render(strconv.Itoa(len(m.rows)) + "/" + strconv.Itoa(len(m.visible())))
+}
+
+// status is what the list is narrowed or widened to (the scope, as in
+// asgitlog), for the edge over the input.
+func (m model) status() string {
 	var scope []string
 	if m.here {
 		// A long directory loses its head, not its tail, like the list's paths.
@@ -548,10 +553,10 @@ func (m model) counter() string {
 	if m.all {
 		scope = append(scope, "+missing dirs")
 	}
-	if len(scope) > 0 {
-		s += " " + stScope.Render("["+strings.Join(scope, ", ")+"]")
+	if len(scope) == 0 {
+		return ""
 	}
-	return s
+	return stScope.Render("[" + strings.Join(scope, ", ") + "]")
 }
 
 // listLines is the list as exactly bodyH lines of listW cells.
