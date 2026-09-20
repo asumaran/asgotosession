@@ -173,7 +173,7 @@ Keybinding (user config): `prefix+y` / `ctrl+alt+h` → `plugin_action`
   version need `rg`. A key inside a message body is escaped (`\"cwd\":`), so
   the raw match only ever hits real keys.
 - **Disk cache**: `sessions.json` in `HERDR_PLUGIN_STATE_DIR` (standalone:
-  `~/.config/herdr/asgotosession-tui`), keyed by path and valid while mtime and
+  `~/.local/state/herdr/plugins/asumaran.asgotosession`), keyed by path and valid while mtime and
   size match. Entries of deleted transcripts are dropped on the next save.
   Whether the directory still exists is NOT cached: it is checked every run.
 - **A query makes the list a search result**: rows are ranked, best match

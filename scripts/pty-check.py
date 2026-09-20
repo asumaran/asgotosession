@@ -90,7 +90,7 @@ class Session:
         env = dict(os.environ, TERM="xterm-256color", COLORTERM="truecolor", HOME=home,
                    CLAUDE_PROJECTS_DIR=projects, CLAUDE_SESSIONS_CMD=claude, HERDR_BIN_PATH=herdr,
                    XDG_CONFIG_HOME=os.path.join(home, ".config"))
-        for k in ("HERDR_ENV", "HERDR_PLUGIN_STATE_DIR", "HERDR_PLUGIN_ENTRYPOINT_ID", "HERDR_PLUGIN_CONTEXT_JSON"):
+        for k in ("HERDR_ENV", "HERDR_PLUGIN_STATE_DIR", "XDG_STATE_HOME", "HERDR_PLUGIN_ENTRYPOINT_ID", "HERDR_PLUGIN_CONTEXT_JSON"):
             env.pop(k, None)
         if in_herdr:
             env["HERDR_ENV"] = "1"
