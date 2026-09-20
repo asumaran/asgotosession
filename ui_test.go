@@ -356,40 +356,57 @@ func TestMouseWheelFollowsThePointer(t *testing.T) {
 	}
 }
 
-func TestQuestionMarkExpandsTheHelp(t *testing.T) {
-	sessions, _ := fixture(t)
-	m := newModel(sessions, "", options{})
+// TestPanel: f1 lays the scope and the keys over a frame that keeps its
+// size, takes every key while it is open, and esc closes it before it quits.
+// `?` is text for the filter.
+func TestPanel(t *testing.T) {
+	sessions, dir := fixture(t)
+	m := newModel(sessions, "", options{dir: filepath.Join(dir, "sub")})
 	res, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 24})
 	m = res.(model)
 	lines := func(m model) []string { return strings.Split(ansi.Strip(m.render()), "\n") }
-	folded := lines(m)
-	if len(folded) != 24 || !strings.Contains(folded[22], "? help") || strings.Contains(folded[22], "pgup") {
-		t.Fatalf("folded help = %q (%d lines)", folded[22], len(folded))
+	closed := lines(m)
+	if len(closed) != 24 || !strings.Contains(closed[22], "f1 options") || strings.Contains(closed[22], "pgup") {
+		t.Fatalf("help line = %q (%d lines)", closed[22], len(closed))
 	}
-	m = press(m, typed("?")...)
+	list := m.listVP.Height()
+	m = press(m, tea.KeyPressMsg{Code: tea.KeyF1})
 	open := lines(m)
-	if !m.help.ShowAll || len(open) != 24 || m.ti.Value() != "" {
-		t.Fatalf("? with an empty filter expands the help and is not typed: ShowAll=%v, %d lines, filter %q", m.help.ShowAll, len(open), m.ti.Value())
+	all := strings.Join(open, "\n")
+	if len(open) != 24 || m.listVP.Height() != list {
+		t.Fatalf("the panel changed the frame: %d lines, list %d -> %d", len(open), list, m.listVP.Height())
 	}
-	foot := strings.Join(open[len(open)-1-m.footH():], "\n")
-	for _, want := range []string{"pgup/pgdn", "⌥↑/⌥↓", "⇧↑/⇧↓", "resize the list", "resume", "esc/q"} {
-		if !strings.Contains(foot, want) {
-			t.Errorf("expanded help lacks %q:\n%s", want, foot)
+	for _, want := range []string{"╭─ options ", "▌ Sessions", "this dir", "‹everywhere›", "+ missing dirs", "^a", "Keys", "pgup/pgdn", "scroll preview", "esc close"} {
+		if !strings.Contains(all, want) {
+			t.Errorf("the panel lacks %q:\n%s", want, all)
 		}
 	}
-	if m.listVP.Height() != 24-frameRows(false)-m.footH() {
-		t.Errorf("the list gives way to the help: %d rows", m.listVP.Height())
+	for i, l := range open {
+		if ansi.StringWidth(l) != 120 {
+			t.Errorf("line %d is %d cells wide, want 120", i, ansi.StringWidth(l))
+		}
 	}
-	// esc folds the help before it quits
+	m = press(m, tea.KeyPressMsg{Code: 'z', Text: "z"}, tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
+	if m.ti.Value() != "" || m.here || !m.all {
+		t.Errorf("space moves to the missing dirs and nothing reaches the filter: %q here=%v all=%v", m.ti.Value(), m.here, m.all)
+	}
+	m = press(m, tea.KeyPressMsg{Code: tea.KeyLeft}, tea.KeyPressMsg{Code: tea.KeyLeft})
+	if !m.here || m.all || !strings.Contains(ansi.Strip(m.render()), "‹this dir›") {
+		t.Errorf("left twice narrows to this dir: here=%v all=%v", m.here, m.all)
+	}
 	res, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	m = res.(model)
-	if m.help.ShowAll || cmd != nil && cmd() == tea.Quit() {
-		t.Errorf("esc folds the help first")
+	if m.panel.open || cmd != nil {
+		t.Errorf("esc closes the panel and nothing else: open=%v cmd=%v", m.panel.open, cmd)
 	}
-	// with text in the filter ? is text
-	m = press(m, typed("x?")...)
-	if m.help.ShowAll || m.ti.Value() != "x?" {
-		t.Errorf("filter = %q, ShowAll = %v, want ? typed as text", m.ti.Value(), m.help.ShowAll)
+	m = press(m, tea.KeyPressMsg{Code: 'x', Text: "x"}, tea.KeyPressMsg{Code: '?', Text: "?"})
+	if m.panel.open || m.ti.Value() != "x?" {
+		t.Errorf("filter = %q, panel open = %v, want ? typed as text", m.ti.Value(), m.panel.open)
+	}
+	// Without a directory to narrow to, the scope has two values.
+	bare := newModel(sessions, "", options{})
+	if got := bare.options()[0].values; len(got) != 2 || got[0] != scopeAll {
+		t.Errorf("scopes without a directory = %q", got)
 	}
 }
 

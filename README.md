@@ -21,7 +21,7 @@ popup, same fuzzy search.
 │                           │                                                                                  │
 │                           │ Done: each field reports its own error under the input. …                        │
 ├───────────────── 358/358 ─┴────────────────────────────────────────────────────────────────────────── 12/12 ─┤
-│ type filter • enter resume • ^a missing dirs • ⇧↓ scroll preview • ⇧←/⇧→ resize • esc/q quit                 │
+│ type filter • enter resume • ^a missing dirs • f1 options • esc/q quit                                       │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -87,7 +87,7 @@ session.
 | `alt+↑`/`alt+↓`, Home/End | top or bottom of the list |
 | `shift+↓`/`shift+↑`, mouse wheel over the preview | scroll the preview |
 | mouse wheel over the list | move the cursor |
-| `?` while the filter is empty, `f1` | expand the help line into every key (`esc` folds it) |
+| `f1` | open the panel: the scope to change in place, and every key (`esc` closes it) |
 | `shift+←`/`shift+→` | resize the list; the split is remembered (the list takes a quarter of the width by default) |
 | click | select a row |
 | `esc`, `q` with an empty filter | close |

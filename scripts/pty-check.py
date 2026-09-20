@@ -199,6 +199,16 @@ print("== asgotosession pty driver (%dx%d) ==" % (COLS, ROWS))
 # ---------- run 1: outside herdr: list, preview, filter, resume in place ----------
 s = Session(in_herdr=False)
 f = s.start(); dump("plain run", f)
+
+# The panel: f1 lays the option and the keys over the frame, takes the keys, and esc closes it.
+p = s.send(b"\x1bOP", 0.6); dump("panel", p)
+check(len(p) == len(f) and any("╭─ options " in l for l in p) and any("Keys" in l for l in p) and any("▌ Sessions" in l for l in p),
+      "f1 opens the panel over a frame that keeps its size")
+s.send(b"zz", 0.6); p = s.send(b"\x1b", 0.6)
+check(s.proc.poll() is None and not any("╭─ options " in l for l in p) and prompt(p) == prompt(f), "esc closes the panel, which took the keys: %r" % prompt(p))
+p = s.send(b"?", 0.6)
+check(prompt(p).endswith("?"), "? is text for the filter: %r" % prompt(p))
+f = s.send(b"\x7f", 0.6)
 check(prompt(f) == "asgotosession ❯ Search by title, directory, branch…", "prompt line is clean: %r" % f[1])
 check(devmark(f), "a dev build says so on the edge over the input")
 check(f[0].startswith("╭") and f[-1].startswith("╰") and f[2].startswith("├") and "┬" in f[2],

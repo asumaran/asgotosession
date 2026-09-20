@@ -48,7 +48,7 @@ type keyMap struct {
 	Help     key.Binding
 }
 
-// ShortHelp is the folded help line: the tool's own actions, the help and the
+// ShortHelp is the help line: the tool's own actions, the panel's key and the
 // quit keys. Moving, scrolling and resizing are in the expanded help, so the
 // line stays short enough for a narrow popup (a cut line loses the quit keys
 // first).
@@ -56,7 +56,7 @@ func (k keyMap) ShortHelp() []key.Binding {
 	return []key.Binding{k.Filter, k.Open, k.Toggle, k.Help, k.Quit}
 }
 
-// FullHelp is what `?` expands the help into, one column per group: the
+// FullHelp is the panel's list of keys, one column per group: the
 // filter and the preview, the list, the tool's actions, help and quit.
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
@@ -81,7 +81,7 @@ func defaultKeys() keyMap {
 		// Help-only entry: a binding without keys is disabled and the help
 		// bubble would skip it. Nothing ever matches against it.
 		Filter: key.NewBinding(key.WithKeys("type"), key.WithHelp("type", "filter")),
-		Help:   helpKey,
+		Help:   helpBinding(true),
 	}
 }
 
@@ -110,6 +110,7 @@ type model struct {
 	// ui
 	notice string // transient footer message, cleared by the next key
 	flash  flash  // confirmation on the help line (flash.go)
+	panel  panel  // options and keys, over the frame while it is open (panel.go)
 	ti     textinput.Model
 	listVP viewport.Model
 	prevVP viewport.Model
@@ -176,36 +177,7 @@ func (m *model) listW() int { w, _ := splitWidths(m.innerW(), m.split); return w
 
 // bodyH is the height of the main section: everything but the frame's own
 // lines and the help, which takes more of them while `?` has it expanded.
-func (m *model) bodyH() int { return max(1, m.height-frameRows(false)-m.footH()) }
-
-// footH is the height of the foot: a message takes one line, the help more
-// while `?` has it expanded; the main section keeps at least minBodyH.
-func (m *model) footH() int {
-	if m.footMsg() != "" {
-		return 1
-	}
-	return helpHeight(m.help, m.keys, m.height-frameRows(false)-minBodyH)
-}
-
-const minBodyH = 4
-
-func (m *model) toggleHelp() tea.Cmd {
-	m.help.ShowAll = !m.help.ShowAll
-	m.resize()
-	m.renderList()
-	return m.updatePreview()
-}
-
-// reflow lays the sections out again after the help line changed height: a
-// flash folds an expanded help for as long as it shows.
-func (m *model) reflow() tea.Cmd {
-	if !m.help.ShowAll {
-		return nil
-	}
-	m.resize()
-	m.renderList()
-	return m.updatePreview()
-}
+func (m *model) bodyH() int { return max(1, m.height-frameRows(false)-1) }
 
 func (m *model) resize() {
 	m.listVP.SetWidth(m.listW())
@@ -281,6 +253,42 @@ func (m model) nextScope() (here, all bool, name string) {
 		return true, false, "this dir"
 	}
 	return false, false, "hide missing"
+}
+
+// The scopes as the panel names them, in the order ctrl+a walks them.
+const (
+	scopeHere    = "this dir"
+	scopeAll     = "everywhere"
+	scopeMissing = "+ missing dirs"
+)
+
+// options is what the panel offers: the scope, which keeps ctrl+a. Without a
+// directory to narrow to there is no such value.
+func (m *model) options() []option {
+	values, cur := []string{scopeAll, scopeMissing}, 0
+	if m.all {
+		cur = 1
+	}
+	if m.hereDir != "" {
+		values, cur = append([]string{scopeHere}, values...), cur+1
+		if m.here {
+			cur = 0
+		}
+	}
+	return []option{{id: "scope", label: "Sessions", values: values, cur: cur, key: "^a"}}
+}
+
+// setOption moves to a scope. The key and the panel both come through here.
+func (m *model) setOption(id string, v int) tea.Cmd {
+	if id != "scope" {
+		return nil
+	}
+	name := m.options()[0].values[v]
+	m.here, m.all = name == scopeHere, name == scopeMissing
+	m.syncHelp()
+	m.refilter()
+	m.renderList()
+	return m.updatePreview()
 }
 
 // syncHelp makes the toggle describe what pressing it would do next.
@@ -436,16 +444,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case flashMsg:
-		return m, tea.Batch(m.flash.set(string(msg)), m.reflow())
+		return m, m.flash.set(string(msg))
 
 	case clearFlashMsg:
 		m.flash.clear(msg)
-		return m, m.reflow()
+		return m, nil
 
 	case tea.KeyPressMsg:
 		return m.handleKey(msg)
 
 	case tea.MouseWheelMsg:
+		if m.panel.open {
+			return m, nil
+		}
 		// Over the list the wheel moves the selection, as in asgitlog; anywhere
 		// else it scrolls the preview.
 		if m.overList(msg.X, msg.Y) {
@@ -458,6 +469,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.MouseClickMsg:
+		if m.panel.open {
+			return m, nil
+		}
 		return m.handleClick(msg)
 
 	default:
@@ -472,10 +486,15 @@ func (m model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch {
 	case msg.String() == "ctrl+c":
 		return m, tea.Quit
-	case foldsHelp(msg, m.help):
-		return m, m.toggleHelp() // esc folds the help before it quits
-	case isHelpKey(msg, m.ti.Value()):
-		return m, m.toggleHelp()
+	case m.panel.open:
+		// The panel takes every key: esc closes it before anything else.
+		if a := m.panel.update(msg, m.options()); a.id != "" {
+			return m, m.setOption(a.id, a.value)
+		}
+		return m, nil
+	case isHelpKey(msg):
+		m.panel.toggle()
+		return m, nil
 	case msg.String() == "q" && m.ti.Value() == "":
 		// q quits only while the filter is empty; otherwise it is text.
 		return m, tea.Quit
@@ -484,11 +503,7 @@ func (m model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case key.Matches(msg, m.keys.Open):
 		return m, m.queueResume(m.current())
 	case key.Matches(msg, m.keys.Toggle):
-		m.here, m.all, _ = m.nextScope()
-		m.syncHelp()
-		m.refilter()
-		m.renderList()
-		return m, m.updatePreview()
+		return m, m.setOption("scope", nextValue(m.options(), "scope"))
 	case key.Matches(msg, m.keys.Copy):
 		// The id is what `claude --resume` takes.
 		if s := m.current(); s != nil {
@@ -555,10 +570,11 @@ func (m model) render() string {
 	out := frameHead(w, "", withDevMark(m.status()), m.ti.View())
 	out = append(out, splitMain(m.listLines(), strings.Split(m.prevVP.View(), "\n"),
 		m.listW(), m.detailsW(), m.counter(), scrollPos(&m.prevVP))...)
-	for _, l := range m.footLines() {
-		out = append(out, framed(w, l))
+	out = append(out, framed(w, m.footLine()), hline(w, "╰", "╯", "", ""))
+	if m.panel.open {
+		keys := keyLines(m.help, m.keys, w-10)
+		out = overlay(out, panelLines(m.options(), m.panel.cursor, keys, w-4, len(out)-2), w)
 	}
-	out = append(out, hline(w, "╰", "╯", "", ""))
 	return strings.Join(out, "\n")
 }
 
@@ -628,9 +644,9 @@ func (m model) footMsg() string {
 	return ""
 }
 
-func (m model) footLines() []string {
+func (m model) footLine() string {
 	if msg := m.footMsg(); msg != "" {
-		return []string{msg}
+		return msg
 	}
-	return helpLines(m.help, m.keys, m.width-4, m.footH())
+	return helpLine(m.help, m.keys, m.width-4)
 }
