@@ -358,19 +358,6 @@ func insideDir(dir, path string) bool {
 	return path == dir || strings.HasPrefix(path, strings.TrimSuffix(dir, "/")+"/")
 }
 
-func tildePath(p, home string) string {
-	if home == "" {
-		return p
-	}
-	if p == home {
-		return "~"
-	}
-	if strings.HasPrefix(p, home+"/") {
-		return "~" + strings.TrimPrefix(p, home)
-	}
-	return p
-}
-
 func countLabel(n int) string {
 	if n == 1 {
 		return "1 session"

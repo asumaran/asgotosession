@@ -19,16 +19,6 @@ import (
 // runner executes a herdr CLI command and returns its stdout.
 type runner func(args ...string) ([]byte, error)
 
-// herdrBin resolves the herdr executable. Plugin commands receive
-// HERDR_BIN_PATH from the running server; fall back to PATH lookup so the
-// binary also works from a plain pane.
-func herdrBin() string {
-	if b := os.Getenv("HERDR_BIN_PATH"); b != "" {
-		return b
-	}
-	return "herdr"
-}
-
 func herdrCLI(args ...string) ([]byte, error) {
 	return exec.Command(herdrBin(), args...).Output()
 }
