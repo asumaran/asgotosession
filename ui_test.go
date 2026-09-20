@@ -61,17 +61,23 @@ func TestFilterKeepsOrderAndMovesCursor(t *testing.T) {
 func TestToggles(t *testing.T) {
 	sessions, dir := fixture(t)
 	m := newModel(sessions, "", options{dir: filepath.Join(dir, "sub")})
+	// ctrl+a walks the scopes: everywhere, plus missing dirs, this dir, around.
 	m = press(m, keyCtrlA)
-	if len(m.rows) != 3 {
+	if len(m.rows) != 3 || !m.all || m.here {
 		t.Errorf("all mode lists %d, want 3", len(m.rows))
 	}
-	m = press(m, keyTab)
-	if len(m.rows) != 1 || m.current().id != "s2" {
+	m = press(m, keyCtrlA)
+	if len(m.rows) != 1 || m.current().id != "s2" || m.all || !m.here {
 		t.Errorf("here mode lists %d rows", len(m.rows))
 	}
-	m = press(m, keyTab, keyCtrlA)
-	if len(m.rows) != 2 {
+	m = press(m, keyCtrlA)
+	if len(m.rows) != 2 || m.all || m.here {
 		t.Errorf("back to default lists %d, want 2", len(m.rows))
+	}
+	// without a directory to narrow to, it only toggles the missing dirs
+	n := press(newModel(sessions, "", options{}), keyCtrlA, keyCtrlA)
+	if n.all || n.here || len(n.rows) != 2 {
+		t.Errorf("no directory: two presses must be back to default, all=%v here=%v", n.all, n.here)
 	}
 }
 
@@ -254,7 +260,8 @@ func TestStatusCarriesTheScope(t *testing.T) {
 	if c, s := ansi.Strip(m.counter()), m.status(); c != "2/2" || s != "" {
 		t.Errorf("default counter = %q, status = %q", c, s)
 	}
-	m = press(m, keyTab, keyCtrlA)
+	// both at once only come from the flags: ctrl+a walks one scope at a time
+	m = newModel(sessions, "", options{dir: dir, here: true, all: true})
 	if c := ansi.Strip(m.counter()); c != "3/3" {
 		t.Errorf("scoped counter = %q", c)
 	}

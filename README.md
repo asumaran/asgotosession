@@ -21,7 +21,7 @@ popup, same fuzzy search.
 │                           │                                                                                  │
 │                           │ Done: each field reports its own error under the input. …                        │
 ├───────────────── 358/358 ─┴────────────────────────────────────────────────────────────────────────── 12/12 ─┤
-│ type filter • enter resume • tab this dir • ^a missing dirs • ⇧↓ scroll preview • ⇧←/⇧→ resize • esc/q quit  │
+│ type filter • enter resume • ^a missing dirs • ⇧↓ scroll preview • ⇧←/⇧→ resize • esc/q quit                 │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -60,7 +60,7 @@ ln -s "$(herdr plugin list --json | jq -r '.result.plugins[] | select(.plugin_id
 
 ## Usage
 
-The filter input is focused on open, so just type. One row per session,
+The filter input is focused on open, so just type. A query of several words matches them in any order (`login fix` finds "fix login flow"), and a word starting with `'` must occur as typed instead of fuzzily (`'dex`). One row per session,
 newest activity first: title, directory and age (a narrow list leaves the
 directory to the preview). The title is the one you gave
 the session, otherwise the one Claude generated, otherwise the first prompt
@@ -80,8 +80,7 @@ session.
 | key | action |
 | --- | --- |
 | `enter` | resume the session |
-| `tab` | only the sessions started in the directory the popup was opened from (or below it), and back |
-| `ctrl+a` | also list sessions whose directory no longer exists, and back |
+| `ctrl+a` | list more: from the directory the popup was opened from (or below it, the `-here` start) to everywhere, then also the sessions whose directory no longer exists, and around again |
 | `↑/↓`, `ctrl+p`/`ctrl+n` | move the cursor |
 | PgDn/PgUp | move the cursor a page |
 | `alt+↑`/`alt+↓`, Home/End | top or bottom of the list |

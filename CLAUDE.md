@@ -185,12 +185,14 @@ Keybinding (user config): `prefix+y` / `ctrl+alt+h` → `plugin_action`
   path and a hidden corpus (branch + id). Matched indexes from `sahilm/fuzzy`
   are BYTE offsets. With an empty query the cursor stays on the row it was on
   (`refilter`).
-- **Modes**: `ctrl+a` adds the sessions whose directory is gone (`-all`);
-  `tab` narrows to the directory the popup was opened from (`-here`). In a
+- **Modes**: `ctrl+a`, the family's "list more" key, walks the scopes
+  (`nextScope`): the directory the popup was opened from (`-here`),
+  everywhere, everywhere plus the sessions whose directory is gone (`-all`),
+  and around again. `tab` is left for marking rows, as in asgotonotes. In a
   plugin pane that directory is `focused_pane_cwd` from
   `HERDR_PLUGIN_CONTEXT_JSON` (herdr starts plugin panes in the plugin's own
-  directory); in a plain run it is the cwd. `tab` is disabled when there is
-  none. Each toggle's help text describes what pressing it does next.
+  directory); in a plain run it is the cwd. Without one the cycle leaves
+  that step out. The toggle's help text names the scope it moves to next.
 - **Keys vs. filter**: every printable key filters, so `q` quits only while
   the filter is empty. `ctrl+a` is intercepted before the textinput (which
   would treat it as line-start).

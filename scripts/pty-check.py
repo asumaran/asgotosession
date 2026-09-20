@@ -244,14 +244,14 @@ check("herdr|workspace create --cwd %s --label tool --focus" % tool in calls, "t
 check("herdr|pane run w7:p1 %s --resume %s" % (claude, PLAIN) in calls, "the resume command runs in the new pane")
 check("herdr|agent focus w7:p1" in calls, "the detached helper focuses the agent pane")
 
-# ---------- run 4: -here + initial query, tab widens, q quits ----------
+# ---------- run 4: -here + initial query, ctrl+a widens, q quits ----------
 s = Session(in_herdr=False, cwd=tool, args=("-here",))
 f = s.start(); dump("-here", f)
 rows = [l for l in left(f) if l.strip()]
 check(len(rows) == 1 and "cache layer" in rows[0], "-here narrows to the current directory: %r" % rows)
-check("tab everywhere" in helpline(f) and counter(f) == "1/1" and status(f).startswith("[in "), "help offers to widen and the scope sits on the top border: %r %r" % (counter(f), status(f)))
-f = s.send(TAB); rows = [l for l in left(f) if l.strip()]
-check(len(rows) == 2, "tab lists everywhere: %d rows" % len(rows))
+check("^a everywhere" in helpline(f) and counter(f) == "1/1" and status(f).startswith("[in "), "help offers to widen and the scope sits on the top border: %r %r" % (counter(f), status(f)))
+f = s.send(CTRL_A); rows = [l for l in left(f) if l.strip()]
+check(len(rows) == 2, "ctrl+a lists everywhere: %d rows" % len(rows))
 s.send(b"q", 0.2)
 check(s.finish() == 0 and s.calls() == [], "q quits with an empty filter and resumes nothing")
 

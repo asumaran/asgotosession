@@ -37,7 +37,6 @@ var (
 type keyMap struct {
 	Nav      listNav
 	Open     key.Binding
-	Here     key.Binding
 	Toggle   key.Binding
 	Quit     key.Binding
 	PrevUp   key.Binding
@@ -53,7 +52,7 @@ type keyMap struct {
 // line stays short enough for a narrow popup (a cut line loses the quit keys
 // first).
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Filter, k.Open, k.Here, k.Toggle, k.Help, k.Quit}
+	return []key.Binding{k.Filter, k.Open, k.Toggle, k.Help, k.Quit}
 }
 
 // FullHelp is what `?` expands the help into, one column per group: the
@@ -62,7 +61,7 @@ func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Filter, k.PrevUp, k.Shrink},
 		{k.Nav.Up, k.Nav.PageUp, k.Nav.Top},
-		{k.Open, k.Here, k.Toggle},
+		{k.Open, k.Toggle},
 		{k.Help, k.Quit},
 	}
 }
@@ -71,7 +70,6 @@ func defaultKeys() keyMap {
 	return keyMap{
 		Nav:      defaultListNav(),
 		Open:     key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "resume")),
-		Here:     key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "this dir")),
 		Toggle:   key.NewBinding(key.WithKeys("ctrl+a"), key.WithHelp("^a", "missing dirs")),
 		Quit:     key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc/q", "quit")),
 		PrevUp:   key.NewBinding(key.WithKeys("shift+up"), key.WithHelp("⇧↑/⇧↓", "scroll preview")),
@@ -255,19 +253,26 @@ func (m *model) refilter() {
 	}
 }
 
-// syncHelp makes each toggle describe what pressing it would do next.
+// nextScope is the scope ctrl+a, the family's "list more" key, moves to, and
+// what the help calls it: this directory, everywhere, everywhere plus the
+// sessions whose directory is gone, and around again. Without a directory to
+// narrow to, the first step is left out.
+func (m model) nextScope() (here, all bool, name string) {
+	switch {
+	case m.here:
+		return false, false, "everywhere"
+	case !m.all:
+		return false, true, "missing dirs"
+	case m.hereDir != "":
+		return true, false, "this dir"
+	}
+	return false, false, "hide missing"
+}
+
+// syncHelp makes the toggle describe what pressing it would do next.
 func (m *model) syncHelp() {
-	if m.all {
-		m.keys.Toggle.SetHelp("^a", "hide missing")
-	} else {
-		m.keys.Toggle.SetHelp("^a", "missing dirs")
-	}
-	if m.here {
-		m.keys.Here.SetHelp("tab", "everywhere")
-	} else {
-		m.keys.Here.SetHelp("tab", "this dir")
-	}
-	m.keys.Here.SetEnabled(m.hereDir != "")
+	_, _, name := m.nextScope()
+	m.keys.Toggle.SetHelp("^a", name)
 }
 
 // ---- list rendering ----
@@ -458,13 +463,7 @@ func (m model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case key.Matches(msg, m.keys.Open):
 		return m, m.queueResume(m.current())
 	case key.Matches(msg, m.keys.Toggle):
-		m.all = !m.all
-		m.syncHelp()
-		m.refilter()
-		m.renderList()
-		return m, m.updatePreview()
-	case key.Matches(msg, m.keys.Here):
-		m.here = !m.here
+		m.here, m.all, _ = m.nextScope()
 		m.syncHelp()
 		m.refilter()
 		m.renderList()
@@ -583,7 +582,7 @@ func (m model) leftColumn() string {
 		msg = m.loadErr
 	case m.ti.Value() != "":
 	case m.here:
-		msg = "No sessions in " + tildePath(m.hereDir, m.home) + " (tab: everywhere)"
+		msg = "No sessions in " + tildePath(m.hereDir, m.home) + " (^a: everywhere)"
 	default:
 		msg = "No sessions yet"
 	}
