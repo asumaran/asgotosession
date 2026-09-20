@@ -1,3 +1,9 @@
+## v0.9.0 (2026-09-20)
+
+* refactor(state): share one state dir with the shell (880c55f)
+* feat(keys): walk the scopes with ctrl+a (4f10d34)
+* feat(search): match query terms in any order (6208869)
+
 ## v0.8.0 (2026-09-19)
 
 * feat(ui): move the counter under the list (efedb89)

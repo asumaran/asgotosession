@@ -1,6 +1,6 @@
 id = "asumaran.asgotosession"
 name = "asgotosession"
-version = "0.8.0"
+version = "0.9.0"
 min_herdr_version = "0.7.5"
 description = "Pick a Claude Code session and resume it in the herdr space of its directory"
 platforms = ["linux", "macos"]
