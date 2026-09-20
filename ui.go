@@ -45,8 +45,6 @@ func padLeft(s string, width int) string {
 // ---- styles ----
 
 var (
-	stPrompt = lipgloss.NewStyle().Foreground(lipgloss.Color("13")).Bold(true)
-	stDev    = lipgloss.NewStyle().Foreground(lipgloss.Color("208")).Bold(true)
 	stHeader = lipgloss.NewStyle().Foreground(lipgloss.Color("6")).Bold(true)
 	stDim    = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
 	stTitle  = lipgloss.NewStyle().Bold(true)
@@ -159,7 +157,7 @@ func newModel(sessions []*session, loadErr string, opts options) model {
 		hereDir:  opts.dir,
 		home:     homeDir(),
 		now:      time.Now(),
-		ti:       newFilterInput(),
+		ti:       newFilterInput("asgotosession", "Search by title, directory, branch…"),
 		listVP:   viewport.New(viewport.WithWidth(50), viewport.WithHeight(20)),
 		prevVP:   viewport.New(viewport.WithWidth(40), viewport.WithHeight(20)),
 		help:     help.New(),
@@ -176,29 +174,6 @@ func newModel(sessions []*session, loadErr string, opts options) model {
 	m.resize()
 	m.renderList()
 	return m
-}
-
-// newFilterInput builds the focused filter textinput with the asgotosession
-// prompt. The prompt string already carries its colors, so the prompt style
-// is left empty.
-func newFilterInput() textinput.Model {
-	ti := textinput.New()
-	ti.Prompt = promptText()
-	st := ti.Styles()
-	st.Focused.Prompt = lipgloss.NewStyle()
-	st.Blurred.Prompt = lipgloss.NewStyle()
-	ti.SetStyles(st)
-	ti.Focus()
-	return ti
-}
-
-// promptText builds the textinput prompt, with an orange "(dev)" marker on
-// non-release builds.
-func promptText() string {
-	if strings.HasPrefix(version, "v") {
-		return stPrompt.Render("asgotosession ❯ ")
-	}
-	return stPrompt.Render("asgotosession (") + stDev.Render("dev") + stPrompt.Render(") ❯ ")
 }
 
 func (m *model) current() *session {
@@ -249,6 +224,7 @@ func (m *model) resize() {
 	m.prevVP.SetWidth(m.prevW())
 	m.prevVP.SetHeight(m.bodyH())
 	m.help.SetWidth(max(0, m.width-4))
+	sizeInput(&m.ti, m.width-4)
 }
 
 // resizeList moves the divider between the list and the preview by one step.
@@ -576,7 +552,7 @@ func (m model) View() tea.View {
 // line: what the list is narrowed to fits next to the counter.
 func (m model) render() string {
 	w := m.width
-	out := frameHead(w, "", m.counter(), m.ti.View())
+	out := frameHead(w, "", withDevMark(m.counter()), m.ti.View())
 	out = append(out, splitMain(m.listLines(), strings.Split(m.prevVP.View(), "\n"),
 		m.listW(), m.detailsW(), listPos(&m.listVP, nil), scrollPos(&m.prevVP))...)
 	for _, l := range m.footLines() {

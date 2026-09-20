@@ -12,7 +12,7 @@ popup, same fuzzy search.
 
 ```
 ╭──────────────────────────────────────────────────────────────────────────────────────────────────── 358/358 ─╮
-│ asgotosession ❯                                                                                              │
+│ ❯ Search by title, directory, branch…                                                                        │
 ├───────────────────────────┬──────────────────────────────────────────────────────────────────────────────────┤
 │▌●Checkout form valid…  17m│ ~/wt/shop/fix-checkout-form-validation                                           │
 │ ●Release plan          46m│ fix/checkout-form-validation · 19/09 10:42 · 3f9c2a1e                            │

@@ -145,7 +145,7 @@ class Session:
     def start(self):
         for _ in range(50):
             self.pump(0.1)
-            if "asgotosession (dev) ❯" in "\n".join(self.frame()): break
+            if "asgotosession ❯" in "\n".join(self.frame()): break
         self.pump(0.5); self.repaint()
         return self.frame()
 
@@ -172,8 +172,12 @@ SHIFT_RIGHT, SHIFT_LEFT = b"\x1b[1;2C", b"\x1b[1;2D"
 def main(f):  return f[3:-3]
 def left(f):  return [l[1:1 + listw()].rstrip() for l in main(f)]
 def right(f): return [l[listw() + 3:-1].rstrip() for l in main(f)]
-def prompt(f): return f[1].strip("│ ").rstrip()
-def counter(f): return f[0].strip("╭╮─ ")
+# The input line: the prompt and what is typed (or the placeholder). A build
+# that is not a release says "(dev)" after the counter, on the edge over the
+# input; devmark() says so.
+def prompt(f): return f[1].strip("│ ").rstrip().removesuffix("(dev)").rstrip()
+def devmark(f): return any(l.rstrip("╮┤─ ").endswith("(dev)") for l in f[:4])
+def counter(f): return f[0].strip("╭╮─ ").removesuffix("(dev)").rstrip()
 def helpline(f): return f[-2]
 def dump(title, f):
     print("--- %s ---" % title)
@@ -186,7 +190,8 @@ print("== asgotosession pty driver (%dx%d) ==" % (COLS, ROWS))
 # ---------- run 1: outside herdr: list, preview, filter, resume in place ----------
 s = Session(in_herdr=False)
 f = s.start(); dump("plain run", f)
-check(prompt(f) == "asgotosession (dev) ❯", "prompt line is clean: %r" % f[1])
+check(prompt(f) == "asgotosession ❯ Search by title, directory, branch…", "prompt line is clean: %r" % f[1])
+check(devmark(f), "a dev build says so after the counter, on the edge over the input")
 check(f[0].startswith("╭") and f[-1].startswith("╰") and f[2].startswith("├") and "┬" in f[2],
       "one frame: the input sits right under the top border, no title line")
 check(b"\x1b[?1049h" in s.raw, "program entered the alt screen")
