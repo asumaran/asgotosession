@@ -1,3 +1,7 @@
+## v0.10.0 (2026-09-20)
+
+* feat(keys): copy the session id with ctrl+y (ff2ad58)
+
 ## v0.9.0 (2026-09-20)
 
 * refactor(state): share one state dir with the shell (880c55f)
