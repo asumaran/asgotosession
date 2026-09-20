@@ -8,7 +8,6 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -78,28 +77,6 @@ func main() {
 			os.Exit(1)
 		}
 	}
-}
-
-// paneCwd is the directory "this dir" refers to. herdr starts plugin panes in
-// the plugin's own directory and describes the invocation, focused pane
-// included, in HERDR_PLUGIN_CONTEXT_JSON; a plain run uses its own cwd.
-func paneCwd() string {
-	if os.Getenv("HERDR_PLUGIN_ENTRYPOINT_ID") != "" {
-		var ctx struct {
-			FocusedPaneCwd string `json:"focused_pane_cwd"`
-			WorkspaceCwd   string `json:"workspace_cwd"`
-		}
-		if json.Unmarshal([]byte(os.Getenv("HERDR_PLUGIN_CONTEXT_JSON")), &ctx) == nil {
-			for _, dir := range []string{ctx.FocusedPaneCwd, ctx.WorkspaceCwd} {
-				if dir != "" {
-					return dir
-				}
-			}
-		}
-		return ""
-	}
-	dir, _ := os.Getwd()
-	return dir
 }
 
 // runDump prints what the popup would list, without a TTY. With -query it

@@ -392,3 +392,46 @@ func TestQuestionMarkExpandsTheHelp(t *testing.T) {
 		t.Errorf("filter = %q, ShowAll = %v, want ? typed as text", m.ti.Value(), m.help.ShowAll)
 	}
 }
+
+// TestCopyKeyCopiesTheSessionID covers ctrl+y: the id of the session under
+// the cursor goes to the clipboard, the help line confirms it for a moment,
+// and the filter is left alone.
+func TestCopyKeyCopiesTheSessionID(t *testing.T) {
+	log := filepath.Join(t.TempDir(), "clip")
+	stub := filepath.Join(t.TempDir(), "clipboard")
+	if err := os.WriteFile(stub, []byte("#!/bin/sh\ncat > "+log+"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("ASGOTOSESSION_CLIPBOARD", stub)
+	sessions, _ := fixture(t)
+	m := press(newModel(sessions, "", options{}), keyDown)
+	res, cmd := m.Update(tea.KeyPressMsg{Code: 'y', Mod: tea.ModCtrl})
+	if cmd == nil {
+		t.Fatal("ctrl+y returned no command")
+	}
+	res, _ = res.(model).Update(cmd())
+	m = res.(model)
+	if got, _ := os.ReadFile(log); string(got) != "s2" {
+		t.Errorf("the clipboard got %q, want the id of the session under the cursor", got)
+	}
+	plain := strings.Split(ansi.Strip(m.View().Content), "\n")
+	if help := plain[len(plain)-2]; !strings.Contains(help, "copied s2") {
+		t.Errorf("help line = %q, want the confirmation", help)
+	}
+	if m.ti.Value() != "" {
+		t.Errorf("ctrl+y leaked into the filter: %q", m.ti.Value())
+	}
+	res, _ = m.Update(clearFlashMsg(m.flash.seq))
+	plain = strings.Split(ansi.Strip(res.(model).View().Content), "\n")
+	if help := plain[len(plain)-2]; !strings.Contains(help, "type filter") {
+		t.Errorf("after the timer the help is back: %q", help)
+	}
+
+	// with nothing under the cursor there is nothing to copy
+	m = press(newModel(sessions, "", options{}), typed("zzzz")...)
+	res, cmd = m.Update(tea.KeyPressMsg{Code: 'y', Mod: tea.ModCtrl})
+	res, _ = res.(model).Update(cmd())
+	if got := res.(model).flash.text; got != "nothing to copy" {
+		t.Errorf("flash with an empty list = %q", got)
+	}
+}

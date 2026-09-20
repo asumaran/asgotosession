@@ -38,6 +38,7 @@ type keyMap struct {
 	Nav      listNav
 	Open     key.Binding
 	Toggle   key.Binding
+	Copy     key.Binding
 	Quit     key.Binding
 	PrevUp   key.Binding
 	PrevDown key.Binding
@@ -61,7 +62,7 @@ func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Filter, k.PrevUp, k.Shrink},
 		{k.Nav.Up, k.Nav.PageUp, k.Nav.Top},
-		{k.Open, k.Toggle},
+		{k.Open, k.Toggle, k.Copy},
 		{k.Help, k.Quit},
 	}
 }
@@ -71,6 +72,7 @@ func defaultKeys() keyMap {
 		Nav:      defaultListNav(),
 		Open:     key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "resume")),
 		Toggle:   key.NewBinding(key.WithKeys("ctrl+a"), key.WithHelp("^a", "missing dirs")),
+		Copy:     key.NewBinding(key.WithKeys("ctrl+y"), key.WithHelp("^y", "copy the session id")),
 		Quit:     key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc/q", "quit")),
 		PrevUp:   key.NewBinding(key.WithKeys("shift+up"), key.WithHelp("⇧↑/⇧↓", "scroll preview")),
 		PrevDown: key.NewBinding(key.WithKeys("shift+down")),
@@ -107,6 +109,7 @@ type model struct {
 
 	// ui
 	notice string // transient footer message, cleared by the next key
+	flash  flash  // confirmation on the help line (flash.go)
 	ti     textinput.Model
 	listVP viewport.Model
 	prevVP viewport.Model
@@ -188,6 +191,17 @@ const minBodyH = 4
 
 func (m *model) toggleHelp() tea.Cmd {
 	m.help.ShowAll = !m.help.ShowAll
+	m.resize()
+	m.renderList()
+	return m.updatePreview()
+}
+
+// reflow lays the sections out again after the help line changed height: a
+// flash folds an expanded help for as long as it shows.
+func (m *model) reflow() tea.Cmd {
+	if !m.help.ShowAll {
+		return nil
+	}
 	m.resize()
 	m.renderList()
 	return m.updatePreview()
@@ -421,6 +435,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case flashMsg:
+		return m, tea.Batch(m.flash.set(string(msg)), m.reflow())
+
+	case clearFlashMsg:
+		m.flash.clear(msg)
+		return m, m.reflow()
+
 	case tea.KeyPressMsg:
 		return m.handleKey(msg)
 
@@ -468,6 +489,12 @@ func (m model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.refilter()
 		m.renderList()
 		return m, m.updatePreview()
+	case key.Matches(msg, m.keys.Copy):
+		// The id is what `claude --resume` takes.
+		if s := m.current(); s != nil {
+			return m, copyCmd("asgotosession", "", s.id)
+		}
+		return m, copyCmd("asgotosession", "", "")
 	case m.keys.Nav.matches(msg):
 		m.setCursor(m.keys.Nav.move(msg, m.cursor, len(m.rows), m.listVP.Height(), nil))
 		m.renderList()
@@ -592,7 +619,10 @@ func (m model) leftColumn() string {
 // footer is the key help, or the notice while one is showing.
 // footMsg is what takes the help's place while there is something to say.
 func (m model) footMsg() string {
-	if m.notice != "" {
+	switch {
+	case m.flash.text != "":
+		return m.flash.view(m.width - 4)
+	case m.notice != "":
 		return stError.Render(truncate(m.notice, max(0, m.width-4)))
 	}
 	return ""

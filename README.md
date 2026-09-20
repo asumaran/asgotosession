@@ -80,6 +80,7 @@ session.
 | key | action |
 | --- | --- |
 | `enter` | resume the session |
+| `ctrl+y` | copy the session id (what `claude --resume` takes) to the clipboard; the help line confirms it |
 | `ctrl+a` | list more: from the directory the popup was opened from (or below it, the `-here` start) to everywhere, then also the sessions whose directory no longer exists, and around again |
 | `↑/↓`, `ctrl+p`/`ctrl+n` | move the cursor |
 | PgDn/PgUp | move the cursor a page |
@@ -117,6 +118,8 @@ asgotosession [-here] [-all] [query]
 `-here` starts narrowed to the current directory, `-all` starts with the
 missing directories listed, and `query` is the initial filter.
 `CLAUDE_SESSIONS_CMD` replaces `claude` (a wrapper, or extra flags).
+`ASGOTOSESSION_CLIPBOARD` replaces the clipboard command `ctrl+y` feeds the
+session id to (`pbcopy` on macOS, else `wl-copy`, `xclip` or `xsel`).
 
 ## Behavior notes
 

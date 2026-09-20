@@ -196,6 +196,11 @@ Keybinding (user config): `prefix+y` / `ctrl+alt+h` → `plugin_action`
 - **Keys vs. filter**: every printable key filters, so `q` quits only while
   the filter is empty. `ctrl+a` is intercepted before the textinput (which
   would treat it as line-start).
+- **Copying**: `ctrl+y` copies the id of the session under the cursor (what
+  `claude --resume` takes) with `copyCmd` (`clipboard.go`) and the help line
+  flashes `copied <id>` (`flash.go`, shown before the notice); both files are
+  the same in every tool of the family. `ASGOTOSESSION_CLIPBOARD` replaces
+  the clipboard command, which is how the tests and the pty check log it.
 - **Paths** that do not fit lose their head, not their tail (`pathCells`), so
   the worktree name is always visible.
 - **Resuming** happens after the TUI quits (quitting closes the popup and
@@ -233,8 +238,8 @@ For end-to-end verification without a TTY, `scripts/pty-check.py
 ./asgotosession` (python3 + `pyte`) spawns the binary on a pty, answers the
 terminal queries, replays keystrokes and asserts on pyte-rendered frames. It
 runs in a throwaway sandbox (fake `HOME`, synthetic transcripts via
-`CLAUDE_PROJECTS_DIR`, logging stubs as `CLAUDE_SESSIONS_CMD` and
-`HERDR_BIN_PATH`), so it never reads the real transcripts, never talks to a
+`CLAUDE_PROJECTS_DIR`, logging stubs as `CLAUDE_SESSIONS_CMD`,
+`HERDR_BIN_PATH` and `ASGOTOSESSION_CLIPBOARD`), so it never reads the real transcripts, never talks to a
 herdr server and never starts claude. Fixture transcripts must be compact
 JSON, like the real ones.
 

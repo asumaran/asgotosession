@@ -29,11 +29,6 @@ func projectsDir() string {
 	return filepath.Join(homeDir(), ".claude", "projects")
 }
 
-func homeDir() string {
-	h, _ := os.UserHomeDir()
-	return h
-}
-
 // session is one resumable transcript.
 type session struct {
 	id      string

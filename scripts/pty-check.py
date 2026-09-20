@@ -5,9 +5,10 @@ Spawns the binary on a pty, answers the terminal queries bubbletea sends
 (OSC 10/11, CSI 6n, DA1), replays keystrokes, and asserts on frames rendered
 with pyte. Everything runs in a throwaway sandbox: a fake HOME, synthetic
 transcripts (CLAUDE_PROJECTS_DIR), a logging stub instead of claude
-(CLAUDE_SESSIONS_CMD) and a logging stub instead of herdr (HERDR_BIN_PATH).
-It never reads the real transcripts, never talks to a herdr server and never
-starts claude.
+(CLAUDE_SESSIONS_CMD), a logging stub instead of herdr (HERDR_BIN_PATH) and a
+logging stub instead of the clipboard (ASGOTOSESSION_CLIPBOARD). It never reads
+the real transcripts, never talks to a herdr server, never starts claude and
+never touches the real clipboard.
 
 Usage: scripts/pty-check.py ./asgotosession   (needs python3 + pyte)
 """
@@ -73,7 +74,9 @@ case "$1 $2" in
   *) printf '{}' ;;
 esac
 """ % (calls_log, wt, LIVE))
-for stub in (claude, herdr):
+clip_log = os.path.join(SANDBOX, "clip.log")
+clipboard = write(os.path.join(SANDBOX, "clipboard"), '#!/bin/sh\ncat > "%s"\n' % clip_log)
+for stub in (claude, herdr, clipboard):
     os.chmod(stub, 0o755)
 
 QUERIES = [(b"\x1b]11;?", b"\x1b]11;rgb:0000/0000/0000\x1b\\"), (b"\x1b]10;?", b"\x1b]10;rgb:ffff/ffff/ffff\x1b\\"),
@@ -89,6 +92,7 @@ class Session:
     def __init__(self, in_herdr, cwd=SANDBOX, args=()):
         env = dict(os.environ, TERM="xterm-256color", COLORTERM="truecolor", HOME=home,
                    CLAUDE_PROJECTS_DIR=projects, CLAUDE_SESSIONS_CMD=claude, HERDR_BIN_PATH=herdr,
+                   ASGOTOSESSION_CLIPBOARD=clipboard,
                    XDG_CONFIG_HOME=os.path.join(home, ".config"))
         for k in ("HERDR_ENV", "HERDR_PLUGIN_STATE_DIR", "XDG_STATE_HOME", "HERDR_PLUGIN_ENTRYPOINT_ID", "HERDR_PLUGIN_CONTEXT_JSON"):
             env.pop(k, None)
@@ -188,7 +192,7 @@ def dump(title, f):
     print("--- %s ---" % title)
     for i, l in enumerate(f): print("%2d|%s" % (i, l))
 
-CTRL_A, ESC, ENTER, TAB, DOWN = b"\x01", b"\x1b", b"\r", b"\t", b"\x1b[B"
+CTRL_A, CTRL_Y, ESC, ENTER, TAB, DOWN = b"\x01", b"\x19", b"\x1b", b"\r", b"\t", b"\x1b[B"
 
 print("== asgotosession pty driver (%dx%d) ==" % (COLS, ROWS))
 
@@ -209,6 +213,14 @@ check("●" not in rows[0], "no live marks outside herdr")
 prev = "\n".join(right(f))
 check("❯ now the canonical url" in prev and "Done: the JSON-LD block" in prev, "preview shows the conversation")
 check(counter(f) == "2/2" and "enter resume" in helpline(f), "counter %r and help %r" % (counter(f), helpline(f)))
+
+f = s.send(CTRL_Y); dump("copied", f)
+copied = open(clip_log).read() if os.path.exists(clip_log) else None
+check(copied == LIVE, "ctrl+y copies the session id: %r" % copied)
+check("copied " + LIVE in helpline(f), "the help line confirms the copy: %r" % helpline(f))
+check(prompt(f) == "asgotosession ❯ Search by title, directory, branch…", "ctrl+y is not typed into the filter: %r" % f[1])
+s.pump(2.0); s.repaint(); f = s.frame()
+check("enter resume" in helpline(f), "the help comes back after the flash: %r" % helpline(f))
 
 f = s.send(CTRL_A); rows = [l for l in left(f) if l.strip()]
 check(len(rows) == 3 and "old work" in rows[2], "ctrl+a lists missing directories: %d rows" % len(rows))
