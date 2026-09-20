@@ -219,19 +219,6 @@ type cacheEntry struct {
 	scanned
 }
 
-// stateDir is the herdr-injected per-plugin state dir; standalone runs fall
-// back to a fixed path under ~/.config/herdr.
-func stateDir() string {
-	if dir := os.Getenv("HERDR_PLUGIN_STATE_DIR"); dir != "" {
-		return dir
-	}
-	base := os.Getenv("XDG_CONFIG_HOME")
-	if base == "" {
-		base = filepath.Join(homeDir(), ".config")
-	}
-	return filepath.Join(base, "herdr", "asgotosession-tui")
-}
-
 func cacheFile() string {
 	return filepath.Join(stateDir(), "sessions.json")
 }
@@ -384,25 +371,12 @@ func tildePath(p, home string) string {
 	return p
 }
 
-func compactAge(t, now time.Time) string {
-	s := int64(now.Sub(t).Seconds())
-	if s < 0 {
-		s = 0
-	}
-	switch {
-	case s < 3600:
-		return fmt.Sprintf("%dm", s/60)
-	case s < 86400:
-		return fmt.Sprintf("%dh", s/3600)
-	case s < 604800:
-		return fmt.Sprintf("%dd", s/86400)
-	}
-	return fmt.Sprintf("%dw", s/604800)
-}
-
 func countLabel(n int) string {
 	if n == 1 {
 		return "1 session"
 	}
 	return fmt.Sprintf("%d sessions", n)
 }
+
+// stateDir is where asgotosession keeps its runtime state.
+func stateDir() string { return stateDirFor("asgotosession") }
