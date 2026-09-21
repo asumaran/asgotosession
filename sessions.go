@@ -220,18 +220,11 @@ func cacheFile() string {
 
 func loadCache(path string) map[string]cacheEntry {
 	c := map[string]cacheEntry{}
-	if data, err := os.ReadFile(path); err == nil {
-		_ = json.Unmarshal(data, &c)
-	}
+	readJSONFile(path, &c)
 	return c
 }
 
-func saveCache(path string, c map[string]cacheEntry) {
-	if data, err := json.Marshal(c); err == nil {
-		_ = os.MkdirAll(filepath.Dir(path), 0o755)
-		_ = os.WriteFile(path, data, 0o644)
-	}
-}
+func saveCache(path string, c map[string]cacheEntry) { writeJSONFile(path, c) }
 
 // ---- loading ----
 

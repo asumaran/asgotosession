@@ -19,10 +19,6 @@ import (
 // runner executes a herdr CLI command and returns its stdout.
 type runner func(args ...string) ([]byte, error)
 
-func herdrCLI(args ...string) ([]byte, error) {
-	return exec.Command(herdrBin(), args...).Output()
-}
-
 func inHerdr() bool {
 	return os.Getenv("HERDR_ENV") == "1"
 }
@@ -258,7 +254,7 @@ func runResume(s *session) error {
 		}
 		return syscall.Exec(bin, argv, os.Environ())
 	}
-	pane, err := openInHerdr(herdrCLI, s.id, s.cwd)
+	pane, err := openInHerdr(herdrAct, s.id, s.cwd) // it may create a space: the long timeout
 	if err != nil {
 		return err
 	}

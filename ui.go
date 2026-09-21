@@ -489,6 +489,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case flashMsg:
 		return m, m.flash.set(string(msg))
 
+	case flashErrMsg:
+		return m, m.flash.fail(string(msg))
+
 	case clearFlashMsg:
 		m.flash.clear(msg)
 		return m, nil

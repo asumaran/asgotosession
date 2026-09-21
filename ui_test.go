@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -47,7 +49,7 @@ func fixture(t *testing.T) (sessions []*session, dir string) {
 	}, dir
 }
 
-func TestFilterKeepsOrderAndMovesCursor(t *testing.T) {
+func TestFilterNarrowsAndMovesCursor(t *testing.T) {
 	sessions, _ := fixture(t)
 	m := newModel(sessions, "", options{})
 	if len(m.rows) != 2 || m.cursor != 0 {
@@ -56,6 +58,81 @@ func TestFilterKeepsOrderAndMovesCursor(t *testing.T) {
 	m = press(m, typed("markup")...)
 	if len(m.rows) != 1 || m.current().id != "s2" {
 		t.Fatalf("filtered rows = %d, current = %+v", len(m.rows), m.current())
+	}
+}
+
+// TestFilterRanksAndMovesCursor: under a query the list is a search result,
+// best match first with the cursor on it (rank.go); without one, and again
+// once the query is gone, the sessions keep their newest-first order.
+func TestFilterRanksAndMovesCursor(t *testing.T) {
+	fixture(t) // the sandboxed state dir
+	now := time.Now()
+	sessions := []*session{
+		{id: "scattered", cwd: "/w", title: "pull and rebase", last: now},
+		{id: "inside", cwd: "/w", title: "An explanation", last: now.Add(-time.Hour)},
+		{id: "word", cwd: "/w", title: "Plan the release", last: now.Add(-2 * time.Hour)},
+	}
+	ids := func(m model) string {
+		var out []string
+		for _, r := range m.rows {
+			out = append(out, r.s.id)
+		}
+		return strings.Join(out, ",")
+	}
+	m := press(newModel(sessions, "", options{}), keyDown)
+	if got := ids(m); got != "scattered,inside,word" {
+		t.Fatalf("no query: rows = %s, want the order they came in", got)
+	}
+	m = press(m, typed("plan")...)
+	if got := ids(m); got != "word,inside,scattered" {
+		t.Errorf("rows = %s, want the best match first and the scattered one last", got)
+	}
+	if m.cursor != 0 || m.current().id != "word" {
+		t.Errorf("the cursor should sit on the best match: cursor = %d", m.cursor)
+	}
+	for i := 1; i < len(m.rows); i++ {
+		if m.rows[i].score > m.rows[i-1].score {
+			t.Errorf("rows are not ranked: %s", ids(m))
+		}
+	}
+	for range "plan" {
+		m = press(m, tea.KeyPressMsg{Code: tea.KeyBackspace})
+	}
+	if got := ids(m); got != "scattered,inside,word" {
+		t.Errorf("query cleared: rows = %s, want newest first again", got)
+	}
+}
+
+// TestEmptyListSaysWhy: a query that matches nothing says so in the list, as
+// in every tool of the family (emptyList in listnav.go). With no query the
+// list gives its own reason: nothing recorded yet, or nothing in this
+// directory, with the key that widens the scope named as the help line does.
+func TestEmptyListSaysWhy(t *testing.T) {
+	sessions, _ := fixture(t)
+	first := func(m model) string {
+		next, _ := m.Update(tea.WindowSizeMsg{Width: 200, Height: 24}) // room for the whole reason
+		return ansi.Strip(next.(model).listLines()[0])
+	}
+	m := press(newModel(sessions, "", options{}), typed("zzzzqq")...)
+	if len(m.rows) != 0 {
+		t.Fatalf("the query should match nothing, got %d rows", len(m.rows))
+	}
+	if list := first(m); !strings.HasPrefix(list, " No matches") {
+		t.Errorf("the list should say there are no matches: %q", list)
+	}
+	if list := first(newModel(nil, "", options{})); !strings.HasPrefix(list, " No sessions yet") {
+		t.Errorf("no sessions: %q", list)
+	}
+	m = newModel(sessions, "", options{dir: "/nowhere", here: true})
+	if len(m.rows) != 0 || !m.here {
+		t.Fatalf("no session lives in /nowhere: rows = %d, here = %v", len(m.rows), m.here)
+	}
+	if list := first(m); !strings.HasPrefix(list, " No sessions in /nowhere (^a: everywhere)") {
+		t.Errorf("nothing in this directory: %q", list)
+	}
+	// a query over an empty scope is still a query
+	if list := first(press(m, typed("x")...)); !strings.HasPrefix(list, " No matches") {
+		t.Errorf("a query in an empty scope: %q", list)
 	}
 }
 
@@ -559,6 +636,87 @@ func TestPreviewHeaderStaysPut(t *testing.T) {
 		}
 		if got := len(strings.Split(m.render(), "\n")); got != size[1] {
 			t.Errorf("%v: frame %d lines", size, got)
+		}
+	}
+}
+
+// TestRunDump covers -dump: the summary names the scope, then a line per
+// session the scope lists, newest first, with its state, age, id, label and
+// directory.
+func TestRunDump(t *testing.T) {
+	sessions, dir := fixture(t)
+	t.Setenv("CLAUDE_PROJECTS_DIR", filepath.Join(dir, "projects"))
+	dump := func(opts options) []string {
+		var out bytes.Buffer
+		runDump(&out, sessions, opts, time.Millisecond)
+		return strings.Split(strings.TrimRight(out.String(), "\n"), "\n")
+	}
+
+	lines := dump(options{})
+	if want := "transcripts: " + filepath.Join(dir, "projects") + ", 3 resumable, 2 shown (scope: " + scopeAll + "), loaded in 1ms"; lines[0] != want {
+		t.Errorf("summary %q, want %q", lines[0], want)
+	}
+	if len(lines) != 3 {
+		t.Fatalf("got %d lines, want the summary and the 2 sessions whose directory exists:\n%s", len(lines), strings.Join(lines, "\n"))
+	}
+	for i, want := range []string{"●   0m  s1  Canonical host fix", "    1h  s2  help pages markup"} {
+		if l := lines[i+1]; !strings.HasPrefix(l, want) || !strings.HasSuffix(l, " "+sessions[i].cwd) {
+			t.Errorf("row %q, want %q and then %s", l, want, sessions[i].cwd)
+		}
+	}
+
+	lines = dump(options{all: true})
+	if !strings.Contains(lines[0], "3 shown (scope: "+scopeMissing+")") {
+		t.Errorf("summary with the missing ones: %q", lines[0])
+	}
+	if len(lines) != 4 || !strings.HasPrefix(lines[3], "x   2d  s3  Old branch") {
+		t.Errorf("want the session of the removed dir last, marked x:\n%s", strings.Join(lines, "\n"))
+	}
+
+	lines = dump(options{here: true, dir: filepath.Join(dir, "sub")})
+	if !strings.Contains(lines[0], "1 shown (scope: "+scopeHere+")") || len(lines) != 2 || !strings.Contains(lines[1], "  s2  ") {
+		t.Errorf("want only the session of this dir:\n%s", strings.Join(lines, "\n"))
+	}
+}
+
+// TestRunDumpQuery covers -dump -query: the matches with their scores, best
+// first, instead of the list.
+func TestRunDumpQuery(t *testing.T) {
+	fixture(t) // the sandboxed state dir
+	now := time.Now()
+	sessions := []*session{
+		{id: "scattered", cwd: "/w", title: "pull and rebase", last: now},
+		{id: "other", cwd: "/w", title: "Zebra crossing", last: now.Add(-time.Minute)},
+		{id: "inside", cwd: "/w", title: "An explanation", last: now.Add(-time.Hour)},
+		{id: "word", cwd: "/w", title: "Plan the release", last: now.Add(-2 * time.Hour)},
+	}
+	var out bytes.Buffer
+	runDump(&out, sessions, options{query: "plan"}, time.Millisecond)
+	got := out.String()
+	summary, matches, ok := strings.Cut(got, "query \"plan\":\n")
+	if !ok || strings.Count(summary, "\n") != 1 || !strings.Contains(summary, "4 shown (scope: "+scopeAll+")") {
+		t.Fatalf("want the summary and the query line on top:\n%s", got)
+	}
+	lines := strings.Split(strings.TrimRight(matches, "\n"), "\n")
+	if len(lines) != 3 {
+		t.Fatalf("got %d matches, want 3:\n%s", len(lines), got)
+	}
+	last := 0
+	for i, title := range []string{"Plan the release", "An explanation", "pull and rebase"} {
+		score, rest, _ := strings.Cut(strings.TrimSpace(lines[i]), "  ")
+		n, err := strconv.Atoi(score)
+		if err != nil || !strings.HasPrefix(rest, title) || !strings.HasSuffix(rest, " /w") {
+			t.Errorf("match %d is %q, want a score, %q and the directory", i, lines[i], title)
+		}
+		if i > 0 && n > last {
+			t.Errorf("score %d after %d, want the best first:\n%s", n, last, got)
+		}
+		last = n
+	}
+	// The matches replace the list: no session that does not match, no ids.
+	for _, not := range []string{"Zebra", "  scattered  ", "  word  "} {
+		if strings.Contains(got, not) {
+			t.Errorf("the query dump has %q, a piece of the full listing:\n%s", not, got)
 		}
 	}
 }

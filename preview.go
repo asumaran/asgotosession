@@ -81,7 +81,7 @@ func renderSession(s *session, width int) string {
 	turns, cut, err := readTail(s.file)
 	switch {
 	case err != nil:
-		b.WriteString(stError.Render(truncate(err.Error(), width)))
+		b.WriteString(errorBlock(err.Error(), width))
 		return b.String()
 	case len(turns) == 0:
 		b.WriteString(stDim.Render("(no conversation yet)"))

@@ -10,6 +10,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"time"
 
@@ -38,7 +39,7 @@ func main() {
 		return
 	}
 	if *awaitFocus != "" {
-		awaitAgentFocus(herdrCLI, *awaitFocus)
+		awaitAgentFocus(herdrRun, *awaitFocus)
 		return
 	}
 	if *query == "" && flag.NArg() > 0 {
@@ -52,7 +53,7 @@ func main() {
 		loadErr = err.Error()
 	}
 	if inHerdr() {
-		markLive(sessions, liveSessions(herdrCLI))
+		markLive(sessions, liveSessions(herdrRun))
 	}
 	opts := options{all: *all, here: *here, dir: paneCwd(), query: *query}
 
@@ -61,7 +62,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, "asgotosession:", err)
 			os.Exit(1)
 		}
-		runDump(sessions, opts, time.Since(start))
+		runDump(os.Stdout, sessions, opts, time.Since(start))
 		return
 	}
 
@@ -81,7 +82,7 @@ func main() {
 
 // runDump prints what the popup would list, without a TTY. With -query it
 // prints the matches and their scores instead.
-func runDump(sessions []*session, opts options, took time.Duration) {
+func runDump(w io.Writer, sessions []*session, opts options, took time.Duration) {
 	home, now := homeDir(), time.Now()
 	opts = opts.resolved()
 	here := ""
@@ -89,13 +90,13 @@ func runDump(sessions []*session, opts options, took time.Duration) {
 		here = opts.dir
 	}
 	visible := visibleSessions(sessions, opts.all, here)
-	fmt.Printf("transcripts: %s, %d resumable, %d shown (scope: %s), loaded in %s\n",
+	fmt.Fprintf(w, "transcripts: %s, %d resumable, %d shown (scope: %s), loaded in %s\n",
 		tildePath(projectsDir(), home), len(sessions), len(visible), opts.scopeName(), took.Round(time.Millisecond))
 
 	if opts.query != "" {
-		fmt.Printf("query %q:\n", opts.query)
+		fmt.Fprintf(w, "query %q:\n", opts.query)
 		for _, r := range filterSessions(visible, opts.query, home) {
-			fmt.Printf("  %5d  %-40s %s\n", r.score, truncate(r.s.label(), 40), tildePath(r.s.cwd, home))
+			fmt.Fprintf(w, "  %5d  %-40s %s\n", r.score, truncate(r.s.label(), 40), tildePath(r.s.cwd, home))
 		}
 		return
 	}
@@ -108,7 +109,7 @@ func runDump(sessions []*session, opts options, took time.Duration) {
 		case s.missing:
 			state = "x"
 		}
-		fmt.Printf("%s %4s  %s  %-50s %s\n", state, compactAge(s.last, now), s.id,
+		fmt.Fprintf(w, "%s %4s  %s  %-50s %s\n", state, compactAge(s.last, now), s.id,
 			truncate(s.label(), 50), tildePath(s.cwd, home))
 	}
 }
