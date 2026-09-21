@@ -1,11 +1,9 @@
 package main
 
-// Fuzzy filtering. Rows keep their newest-first order while filtering (the
-// list is a timeline, not a ranking); the score only decides where the cursor
-// lands. Matched positions are byte offsets into the displayed string, as
-// sahilm/fuzzy reports them.
-
-import ()
+// Fuzzy filtering. Without a query the rows keep their newest-first order; with
+// one the list is a search result, best match first (rank.go), and the cursor
+// starts on it. Matched positions are byte offsets into the displayed text, as
+// match.go reports them.
 
 // sessionRow is one session in the list.
 type sessionRow struct {

@@ -477,3 +477,20 @@ func TestScopeIsRemembered(t *testing.T) {
 		t.Errorf("-all goes before the remembered scope: here=%v all=%v", next.here, next.all)
 	}
 }
+
+// TestPasteFilters: a paste changes the query without a key press, and the
+// list must follow it (toInput); under the panel it is dropped.
+func TestPasteFilters(t *testing.T) {
+	sessions, _ := fixture(t)
+	m := newModel(sessions, "", options{})
+	res, _ := m.Update(tea.PasteMsg{Content: "zzzzqq"})
+	m = res.(model)
+	if m.ti.Value() != "zzzzqq" || len(m.rows) != 0 {
+		t.Fatalf("a paste should filter: query %q, %d rows", m.ti.Value(), len(m.rows))
+	}
+	m.panel.open = true
+	res, _ = m.Update(tea.PasteMsg{Content: "xx"})
+	if got := res.(model).ti.Value(); got != "zzzzqq" {
+		t.Errorf("a paste under the panel should be dropped, the query is %q", got)
+	}
+}
