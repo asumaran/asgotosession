@@ -1,3 +1,14 @@
+## v0.13.0 (2026-09-21)
+
+* docs: describe the new shared files and flashes (f96e87c)
+* refactor: share the herdr runner and cache write (261570b)
+* docs: describe the opener, -dump and the header (0905341)
+* feat(env)!: rename the opener, fix the header (5274c52)
+* docs: match the docs to the shared helpers (af947e8)
+* fix(ui): filter on paste, share the frame helpers (ae0bd4f)
+* test(pty): cover the panel's option and the mouse (08fb4a6)
+* refactor(list): word the empty list with emptyList (7148652)
+
 ## v0.12.1 (2026-09-20)
 
 * chore(git): ignore the linux release binaries (c600f0d)
