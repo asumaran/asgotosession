@@ -622,17 +622,11 @@ func (m model) leftColumn() string {
 	if len(m.rows) > 0 {
 		return m.listVP.View()
 	}
-	msg := "No matches"
-	switch {
-	case m.loadErr != "":
-		msg = m.loadErr
-	case m.ti.Value() != "":
-	case m.here:
-		msg = "No sessions in " + tildePath(m.hereDir, m.home) + " (^a: everywhere)"
-	default:
-		msg = "No sessions yet"
+	reason := "No sessions yet"
+	if m.here {
+		reason = "No sessions in " + tildePath(m.hereDir, m.home) + " (^a: everywhere)"
 	}
-	return stDim.Render(truncate(" "+msg, m.listW()))
+	return emptyList(m.loadErr, m.ti.Value(), reason, m.listW())
 }
 
 // footer is the key help, or the notice while one is showing.
