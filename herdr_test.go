@@ -142,11 +142,11 @@ func TestLiveSessions(t *testing.T) {
 }
 
 func TestResumeCommand(t *testing.T) {
-	t.Setenv("CLAUDE_SESSIONS_CMD", "")
+	t.Setenv("ASGOTOSESSION_OPENER", "")
 	if got := resumeCommand("abc"); got != "claude --resume abc" {
 		t.Errorf("got %q", got)
 	}
-	t.Setenv("CLAUDE_SESSIONS_CMD", "myclaude  --flag")
+	t.Setenv("ASGOTOSESSION_OPENER", "myclaude  --flag")
 	if got := resumeCommand("abc"); got != "myclaude --flag --resume abc" {
 		t.Errorf("got %q", got)
 	}

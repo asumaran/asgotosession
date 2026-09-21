@@ -180,7 +180,7 @@ func TestRenderSession(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := &session{id: "abc", file: file, cwd: dir, title: "A title", branch: "main", pane: "w1:p1"}
-	out := ansi.Strip(renderSession(s, 60, ""))
+	out := ansi.Strip(previewHeader(s, 60, "") + "\n" + renderSession(s, 60))
 	for _, want := range []string{"A title", "main · ", "abc", "live in pane w1:p1", "❯ first question", "the answer"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("preview lacks %q:\n%s", want, out)
@@ -492,5 +492,73 @@ func TestPasteFilters(t *testing.T) {
 	res, _ = m.Update(tea.PasteMsg{Content: "xx"})
 	if got := res.(model).ti.Value(); got != "zzzzqq" {
 		t.Errorf("a paste under the panel should be dropped, the query is %q", got)
+	}
+}
+
+// -dump and the popup resolve the scope the same way: a flag wins, else the
+// saved one, and "this dir" needs a directory.
+func TestOptionsResolved(t *testing.T) {
+	t.Setenv("HERDR_PLUGIN_STATE_DIR", t.TempDir())
+	if o := (options{dir: "/x"}).resolved(); o.here || o.all || o.scopeName() != scopeAll {
+		t.Errorf("nothing saved: %+v", o)
+	}
+	saveSetting(stateDir(), "scope", "missing")
+	if o := (options{dir: "/x"}).resolved(); !o.all || o.scopeName() != scopeMissing {
+		t.Errorf("saved missing: %+v", o)
+	}
+	if o := (options{dir: "/x", here: true}).resolved(); !o.here || o.all {
+		t.Errorf("-here wins over the saved scope: %+v", o)
+	}
+	saveSetting(stateDir(), "scope", "here")
+	if o := (options{}).resolved(); o.here {
+		t.Errorf("this dir without a dir: %+v", o)
+	}
+}
+
+// Changing an option is not a search: with a query typed, the cursor stays on
+// the session it was on instead of jumping back to the best match.
+func TestScopeChangeKeepsTheCursorWithAQuery(t *testing.T) {
+	sessions, _ := fixture(t)
+	m := press(newModel(sessions, "", options{}), typed("e")...)
+	if len(m.rows) < 2 {
+		t.Fatalf("the fixture must give two matches, got %d", len(m.rows))
+	}
+	m = press(m, tea.KeyPressMsg{Code: tea.KeyDown})
+	want := m.current().id
+	if m = press(m, keyCtrlA); m.current() == nil || m.current().id != want {
+		t.Errorf("ctrl+a moved the cursor off %s", want)
+	}
+	if m = press(m, typed("s")...); m.cursor != 0 {
+		t.Errorf("typing jumps to the best match, cursor = %d", m.cursor)
+	}
+}
+
+// The header of the preview is not part of what scrolls: it is on screen
+// before the transcript is read and stays there, one blank line above the
+// conversation, and the column never outgrows the frame.
+func TestPreviewHeaderStaysPut(t *testing.T) {
+	sessions, _ := fixture(t)
+	for _, size := range [][2]int{{100, 30}, {61, 12}, {40, 10}} {
+		res, _ := newModel(sessions, "", options{}).Update(tea.WindowSizeMsg{Width: size[0], Height: size[1]})
+		m := res.(model)
+		m.updatePreview()
+		m.prevVP.SetContent(strings.Repeat("line\n", 200))
+		m.prevVP.GotoBottom()
+		right := m.rightLines()
+		head := strings.Split(ansi.Strip(previewHeader(m.current(), m.prevW(), m.home)), "\n")
+		if len(right) != m.bodyH() {
+			t.Errorf("%v: right column %d lines, want bodyH %d", size, len(right), m.bodyH())
+		}
+		if size[1] >= 12 {
+			if got := ansi.Strip(right[0]); got != head[0] {
+				t.Errorf("%v: first line %q, want the header %q", size, got, head[0])
+			}
+			if right[len(head)] != "" {
+				t.Errorf("%v: want one blank line under the header, got %q", size, right[len(head)])
+			}
+		}
+		if got := len(strings.Split(m.render(), "\n")); got != size[1] {
+			t.Errorf("%v: frame %d lines", size, got)
+		}
 	}
 }

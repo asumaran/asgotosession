@@ -127,22 +127,40 @@ type model struct {
 	chosen *session // session to resume after quit (nil = none)
 }
 
-func newModel(sessions []*session, loadErr string, opts options) model {
-	// Without -here or -all the scope is the one left chosen last time.
-	here, all := opts.here, opts.all
-	if !here && !all {
+// resolved is the scope in effect, for the popup and for -dump alike: -here or
+// -all when given, else the one left chosen last time. "This dir" needs a dir.
+func (o options) resolved() options {
+	if !o.here && !o.all {
 		switch loadSetting(stateDir(), "scope") {
 		case "here":
-			here = true
+			o.here = true
 		case "missing":
-			all = true
+			o.all = true
 		}
 	}
+	o.here = o.here && o.dir != ""
+	return o
+}
+
+// scopeName is the scope as the panel words it.
+func (o options) scopeName() string {
+	switch {
+	case o.here:
+		return scopeHere
+	case o.all:
+		return scopeMissing
+	}
+	return scopeAll
+}
+
+func newModel(sessions []*session, loadErr string, opts options) model {
+	opts = opts.resolved()
+	here, all := opts.here, opts.all
 	m := model{
 		sessions: sessions,
 		loadErr:  loadErr,
 		all:      all,
-		here:     here && opts.dir != "",
+		here:     here,
 		hereDir:  opts.dir,
 		home:     homeDir(),
 		now:      time.Now(),
@@ -191,8 +209,31 @@ func (m *model) bodyH() int { return max(1, m.height-frameRows(false)-1) }
 
 func (m *model) resize() {
 	sizePanes(&m.listVP, &m.prevVP, m.listW(), m.prevW(), m.bodyH())
+	m.syncPreviewHeight()
 	m.help.SetWidth(max(0, m.width-4))
 	sizeInput(&m.ti, m.width-4)
+}
+
+// syncPreviewHeight fits the conversation under the header of the selected
+// session, whose height varies (a live session has one more line).
+func (m *model) syncPreviewHeight() {
+	hh := 0
+	if s := m.current(); s != nil {
+		hh = lipgloss.Height(previewHeader(s, m.prevW(), m.home)) + 1 // and the blank line under it
+	}
+	m.prevVP.SetHeight(max(1, m.bodyH()-hh))
+}
+
+// rightLines is the right column: the header, a blank line, the conversation,
+// never taller than the body.
+func (m model) rightLines() []string {
+	body := strings.Split(m.prevVP.View(), "\n")
+	s := m.current()
+	if s == nil {
+		return body
+	}
+	lines := append(append(strings.Split(previewHeader(s, m.prevW(), m.home), "\n"), ""), body...)
+	return lines[:min(len(lines), max(1, m.bodyH()))] // a frame too short for both keeps the header
 }
 
 // resizeList moves the divider between the list and the preview by one step.
@@ -231,16 +272,17 @@ func (m *model) keepCursorOn(id string) {
 	}
 }
 
-// refilter re-applies the query after a keystroke or a mode toggle. An empty
-// query means nothing is being searched for, so the cursor stays on the row
-// it was on instead of jumping to the top.
-func (m *model) refilter() {
+// refilter re-applies the query. Typing jumps to the best match; with an empty
+// query, or when keep is set (an option changed, which is not a search), the
+// cursor stays on the row it was on. A row that is gone leaves the cursor on
+// the best match.
+func (m *model) refilter(keep bool) {
 	id := ""
 	if s := m.current(); s != nil {
 		id = s.id
 	}
 	m.applyFilter()
-	if !hasTerms(m.ti.Value()) {
+	if keep || !hasTerms(m.ti.Value()) {
 		m.keepCursorOn(id)
 	}
 }
@@ -294,7 +336,7 @@ func (m *model) setOption(id string, v int) tea.Cmd {
 	m.here, m.all = name == scopeHere, name == scopeMissing
 	saveSetting(stateDir(), "scope", map[string]string{scopeHere: "here", scopeAll: "everywhere", scopeMissing: "missing"}[name])
 	m.syncHelp()
-	m.refilter()
+	m.refilter(true)
 	m.renderList()
 	return m.updatePreview()
 }
@@ -378,6 +420,7 @@ func (m *model) ensureVisible() {
 // updatePreview refreshes the right column with the session under the
 // cursor, rendered off the update loop and cached.
 func (m *model) updatePreview() tea.Cmd {
+	m.syncPreviewHeight()
 	s := m.current()
 	if s == nil {
 		m.prevKey = ""
@@ -543,7 +586,7 @@ func (m model) toInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if !changed {
 		return m, cmd
 	}
-	m.refilter()
+	m.refilter(false)
 	m.renderList()
 	return m, tea.Batch(cmd, m.updatePreview())
 }
@@ -575,7 +618,7 @@ func (m model) View() tea.View { return popupView(m.render(), true) }
 func (m model) render() string {
 	w := m.width
 	out := frameHead(w, "", withDevMark(m.status()), m.ti.View())
-	out = append(out, splitMain(m.listLines(), strings.Split(m.prevVP.View(), "\n"),
+	out = append(out, splitMain(m.listLines(), m.rightLines(),
 		m.listW(), m.detailsW(), m.counter(), scrollPos(&m.prevVP))...)
 	out = append(out, framed(w, footLine(m.flash, m.notice, m.help, m.keys, w-4)), hline(w, "╰", "╯", "", ""))
 	if m.panel.open {

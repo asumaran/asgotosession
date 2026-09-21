@@ -68,7 +68,7 @@ func main() {
 	// Alt screen and mouse mode are declared per frame by View().
 	res, err := tea.NewProgram(newModel(sessions, loadErr, opts)).Run()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(os.Stderr, "asgotosession:", err)
 		os.Exit(1)
 	}
 	if s := res.(model).chosen; s != nil {
@@ -83,13 +83,14 @@ func main() {
 // prints the matches and their scores instead.
 func runDump(sessions []*session, opts options, took time.Duration) {
 	home, now := homeDir(), time.Now()
+	opts = opts.resolved()
 	here := ""
 	if opts.here {
 		here = opts.dir
 	}
 	visible := visibleSessions(sessions, opts.all, here)
-	fmt.Printf("transcripts: %s, %d resumable, %d shown, loaded in %s\n",
-		tildePath(projectsDir(), home), len(sessions), len(visible), took.Round(time.Millisecond))
+	fmt.Printf("transcripts: %s, %d resumable, %d shown (scope: %s), loaded in %s\n",
+		tildePath(projectsDir(), home), len(sessions), len(visible), opts.scopeName(), took.Round(time.Millisecond))
 
 	if opts.query != "" {
 		fmt.Printf("query %q:\n", opts.query)

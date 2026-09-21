@@ -42,7 +42,7 @@ func previewKey(file string, width int) string {
 
 func renderPreviewCmd(s session, key string, width int) tea.Cmd {
 	return func() tea.Msg {
-		return previewMsg{key: key, content: renderSession(&s, width, homeDir())}
+		return previewMsg{key: key, content: renderSession(&s, width)}
 	}
 }
 
@@ -52,25 +52,32 @@ type turn struct {
 	text string
 }
 
-// renderSession builds the whole right column for one session.
-func renderSession(s *session, width int, home string) string {
-	var b strings.Builder
-	b.WriteString(stHeader.Render(truncate(s.label(), width)) + "\n")
+// previewHeader is the instant block above the conversation: it comes from
+// what the list already knows, so it is there before the transcript is read,
+// and it stays put while the conversation scrolls. rightLines puts one blank
+// line under it, as in every tool of the family with a header.
+func previewHeader(s *session, width int, home string) string {
+	lines := []string{stHeader.Render(truncate(s.label(), width))}
 	dir := tildePath(s.cwd, home)
 	if s.missing {
 		dir += " [missing]"
 	}
-	b.WriteString(stDim.Render(truncate(dir, width)) + "\n")
+	lines = append(lines, stDim.Render(truncate(dir, width)))
 	meta := s.last.Format("02/01 15:04") + " · " + s.id
 	if s.branch != "" {
 		meta = s.branch + " · " + meta
 	}
-	b.WriteString(stDim.Render(truncate(meta, width)) + "\n")
+	lines = append(lines, stDim.Render(truncate(meta, width)))
 	if s.pane != "" {
-		b.WriteString(stLive.Render(truncate("● live in pane "+s.pane, width)) + "\n")
+		lines = append(lines, stLive.Render(truncate("● live in pane "+s.pane, width)))
 	}
-	b.WriteString("\n")
+	return strings.Join(lines, "\n")
+}
 
+// renderSession builds the conversation of one session, the part of the
+// right column that scrolls.
+func renderSession(s *session, width int) string {
+	var b strings.Builder
 	turns, cut, err := readTail(s.file)
 	switch {
 	case err != nil:

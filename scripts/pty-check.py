@@ -5,7 +5,7 @@ Spawns the binary on a pty, answers the terminal queries bubbletea sends
 (OSC 10/11, CSI 6n, DA1), replays keystrokes, and asserts on frames rendered
 with pyte. Everything runs in a throwaway sandbox: a fake HOME, synthetic
 transcripts (CLAUDE_PROJECTS_DIR), a logging stub instead of claude
-(CLAUDE_SESSIONS_CMD), a logging stub instead of herdr (HERDR_BIN_PATH) and a
+(ASGOTOSESSION_OPENER), a logging stub instead of herdr (HERDR_BIN_PATH) and a
 logging stub instead of the clipboard (ASGOTOSESSION_CLIPBOARD). It never reads
 the real transcripts, never talks to a herdr server, never starts claude and
 never touches the real clipboard.
@@ -91,7 +91,7 @@ class Session:
     """One run of the binary on a pty."""
     def __init__(self, in_herdr, cwd=SANDBOX, args=()):
         env = dict(os.environ, TERM="xterm-256color", COLORTERM="truecolor", HOME=home,
-                   CLAUDE_PROJECTS_DIR=projects, CLAUDE_SESSIONS_CMD=claude, HERDR_BIN_PATH=herdr,
+                   CLAUDE_PROJECTS_DIR=projects, ASGOTOSESSION_OPENER=claude, HERDR_BIN_PATH=herdr,
                    ASGOTOSESSION_CLIPBOARD=clipboard,
                    XDG_CONFIG_HOME=os.path.join(home, ".config"))
         for k in ("HERDR_ENV", "HERDR_PLUGIN_STATE_DIR", "XDG_STATE_HOME", "HERDR_PLUGIN_ENTRYPOINT_ID", "HERDR_PLUGIN_CONTEXT_JSON"):

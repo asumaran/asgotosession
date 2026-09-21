@@ -135,9 +135,9 @@ func rootPaneID(out []byte) (string, error) {
 // ---- resuming ----
 
 // claudeCommand is the command used to resume, as words.
-// CLAUDE_SESSIONS_CMD replaces it (e.g. a wrapper, or extra flags).
+// ASGOTOSESSION_OPENER replaces it, e.g. a wrapper or extra flags (opener.go).
 func claudeCommand() []string {
-	if f := strings.Fields(os.Getenv("CLAUDE_SESSIONS_CMD")); len(f) > 0 {
+	if f := openerArgv("asgotosession"); len(f) > 0 {
 		return f
 	}
 	return []string{"claude"}
