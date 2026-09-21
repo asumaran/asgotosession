@@ -1,6 +1,7 @@
 # Compiled binary (built locally or in CI; attached to GitHub Releases as an asset).
 /asgotosession
 asgotosession-darwin-*
+asgotosession-linux-*
 
 # Release staging
 /dist/
