@@ -7,12 +7,14 @@ Guidance for working in this repository.
 `asgotosession` is a herdr plugin popup that lists the user's Claude Code
 sessions and resumes the chosen one in the herdr space of its directory. Open,
 pick, exit: same lifecycle and look as `asgotonotes`, `asgotopr` and `asgoto`,
-which this repo is modeled on. It is the Go port of `fcs`, a bash + fzf
-script, and must keep listing exactly what that script listed.
+which this repo is modeled on. It started as the Go port of a bash + fzf
+script; what it lists is the rule under Data source: every top-level
+transcript that recorded a `cwd`, whose directory still exists unless the
+scope includes the missing ones.
 
-It only reads the transcripts. It writes nothing except its own cache, and the
-only things it runs are herdr CLI calls (or `claude --resume` outside herdr),
-after the TUI has quit.
+It only reads the transcripts. What it writes is its own: its settings (the
+panel's option and the list size) and its cache. The only things it runs are
+herdr CLI calls (or `claude --resume` outside herdr), after the TUI has quit.
 
 Distributed as a herdr plugin (`herdr plugin install asumaran/asgotosession`;
 the manifest's `[[build]]` runs `scripts/fetch-binary.sh`). Each GitHub Release
@@ -46,70 +48,109 @@ canonical `charm.land/<name>/v2` paths (the
 `github.com/charmbracelet/<name>/v2` spelling is rejected by `go get`). Files
 are split by concern:
 
-- `main.go` — flags (`-version`, `-dump`, `-all`, `-here`, `-query`, the
-  internal `-await-focus`), `paneCwd`, `tea.NewProgram`, post-quit
-  `runResume`, `runDump`.
-- `sessions.go` — pure logic: `scanTranscript` (raw-byte line matching),
+- `main.go`: flags (`-version`, `-dump`, `-all`, `-here`, `-query`, the
+  internal `-await-focus`), `tea.NewProgram`, post-quit `runResume`,
+  `runDump`.
+- `sessions.go`: pure logic: `scanTranscript` (raw-byte line matching),
   `loadSessions` (parallel scan + disk cache), `visibleSessions`, `markLive`,
-  `compactAge`, `tildePath`.
-- `herdr.go` — the herdr CLI behind a `runner` func (faked in tests):
+  `stateDir()`.
+- `herdr.go`: the herdr CLI behind a `runner` func (faked in tests):
   `liveSessions`, `openInHerdr`, `awaitAgentFocus` / `detachAgentFocus`,
   `runResume`.
-- `filter.go` — fuzzy rows.
-- `match.go` — `findTight`, the fuzzy matcher with one correction: it is
-  greedy (first candidate for each rune, left to right), so a query that
+- `filter.go`: fuzzy rows.
+- `match.go`: `findTight`/`tighten`, the fuzzy matcher with one correction: it
+  is greedy (first candidate for each rune, left to right), so a query that
   occurs in one piece could still match scattered letters before it. When the
   query occurs whole, that occurrence is the match, for the highlight and for
-  the score. The same file in every tool of the family.
-- `text.go` — `truncate`, `padRight`, `padLeft`: fitting text, styled or not,
+  the score. `hasTerms` says whether a query searches for anything: spaces and
+  a bare `~` or `'` do not, so they never filter, rank or move the cursor. The
+  same file in every tool of the family.
+- `text.go`: `truncate`, `padRight`, `padLeft`: fitting text, styled or not,
   into cells. The same file in every tool of the family.
-- `statedir.go` — `stateDirFor`: the state dir herdr injects, or a fixed path
-  under the config home when the tool runs on its own. The same file in every
-  tool of the family that keeps state.
-- `setting.go` — `loadSetting`, `saveSetting`: a setting the tool remembers,
+- `statedir.go`: `stateDirFor`: the state dir herdr injects
+  (`HERDR_PLUGIN_STATE_DIR`) or, when the tool runs on its own, the same
+  directory worked out
+  (`${XDG_STATE_HOME:-~/.local/state}/herdr/plugins/asumaran.asgotosession`),
+  so the popup and a run from the shell share settings and caches. The same
+  file in every tool of the family.
+- `setting.go`: `loadSetting`, `saveSetting`: a setting the tool remembers,
   one plain-text file each in the state dir. Every option of the panel is
   kept this way, per tool. The same file in every tool of the family that
   needs it.
-- `age.go` — `compactAge` (`5m`, `3h`, `2d`, `6w`, `2y`) for a list column and
+- `age.go`: `compactAge` (`5m`, `3h`, `2d`, `6w`, `2y`) for a list column and
   `relTime` (`3h ago`) for a sentence. The same file in every tool of the
   family that shows an age.
-- `listmouse.go` — `inList`, `rowUnder`, `wheelKey`: the mouse over the list.
+- `listmouse.go`: `inList`, `rowUnder`, `wheelKey`: the mouse over the list.
   The wheel goes through the same code as the arrows; a click moves the
   cursor and never opens anything. The same file in every tool of the family.
-- `prompt.go` — the filter input: its prompt (with the tool's name only outside
+- `prompt.go`: the filter input: its prompt (with the tool's name only outside
   herdr's popup), the placeholder, the `(dev)` mark on the edge over the
-  input. The same
-  file in every tool of the family.
-- `helpfoot.go` — the help line at the foot, cut to the width, and the key
-  that opens the panel. The same file in every tool of the family.
-- `panel.go` — the panel `f1` opens over the frame: options to change in
+  input. `typeInto` hands a message to the input and reports whether the query
+  changed: a key, a terminal paste and the input's own `ctrl+v` all edit it,
+  and the caller filters again only when it did. The same file in every tool
+  of the family.
+- `helpfoot.go`: the help line at the foot, cut to the width, and the key that
+  opens the panel. `footLine` is what the foot shows: a flash first, then a
+  notice in the error color, else the help. The same file in every tool of the
+  family.
+- `panel.go`: the panel `f1` opens over the frame: options to change in
   place and every key under them (`option`, `panel`, `panelLines`,
   `overlay`). The same file in every tool of the family.
-- `listnav.go` — `listNav`: the keys that move the cursor through a list and
-  where each one takes it, group headers skipped. `scrollTo` keeps the
-  cursor in view, with the header of its group when there is one. `emptyList`
-  is what a list says instead of rows: the error, `No matches`, or the
-  tool's own reason. The same file in every tool
-  of the family.
-- `highlight.go` — `highlight`/`highlightFrom`, `matchOver`, `onSel`,
+- `listnav.go`: `listNav`: the keys that move the cursor through a list and
+  where each one takes it, group headers skipped. `scrollTo` keeps the cursor
+  in view together with the row `withHeader` names: the header of its group
+  when that is the row right above. `emptyList` is what a list says instead of
+  rows: the error that kept it from loading, in the error color, `No matches`,
+  or the tool's own reason. The same file in every tool of the family.
+- `highlight.go`: `highlight`/`highlightFrom`, `matchOver`, `onSel`,
   `selPad` and the `stSel`/`stMatch` styles: how a match and the selected row
   look. The same file in every tool of the family.
-- `pathcells.go` — `pathCells`, `pathTail`, `tailCut`: a path cut to a width
+- `flash.go`: `flash`, `flashMsg`, `clearFlashMsg`: a confirmation that takes
+  the help line for a moment. The same file in every tool of the family.
+- `clipboard.go`: `copyCmd`: feeds a text to the system clipboard and reports
+  it with a `flashMsg`; `ASGOTOSESSION_CLIPBOARD` replaces the command. The
+  same file in every tool of the family.
+- `border.go`: `hline`, `framed`, `fit`, `scrollPos`: the primitives the frame
+  is drawn with (an edge with texts set into it, a line between the frame's
+  sides, the position a scrolled viewport reports on an edge). `fitLines` is
+  content as exactly so many lines of a width, and `popupView` is the
+  `tea.View` every tool returns: the alt screen and, while the mouse is on,
+  cell-motion mouse reports. The same file in every tool of the family.
+- `homepath.go`: `tildePath`, `homeDir`, `homeRel`: a path with the home
+  directory abbreviated to `~`. The same file in every tool of the family that
+  shows paths.
+- `rank.go`: `rank`: with a query the list is a search result, best score
+  first; in a grouped list the groups go by their best item and keep their
+  items together, and equal scores keep the list's own order. The same file in
+  every tool of the family that ranks its matches.
+- `herdrbin.go`: `herdrBin`: where the herdr executable is (`HERDR_BIN_PATH`,
+  which the server hands to plugin commands, else `herdr` on `PATH`). The same
+  file in every tool of the family that talks to herdr.
+- `panecwd.go`: `paneDirs`, `paneCwd`, `enterPaneCwd`: which directory a popup
+  was opened from. herdr starts a plugin pane in the plugin's own directory
+  and hands over `focused_pane_cwd` and `workspace_cwd` in
+  `HERDR_PLUGIN_CONTEXT_JSON`; a plain run uses the working directory. The
+  same file in every tool of the family that needs it.
+- `pathcells.go`: `pathCells`, `pathTail`, `tailCut`: a path cut to a width
   by its head, its prefix dimmed, its matches marked. The same file in every
   tool that lists paths.
-- `frame.go` — the single-frame layout shared by the family: `hline`, `fit`,
-  `framed`, `frameHead`, `splitMain`, `scrollPos` and the section rows (`mainY`,
-  `listY`, `frameRows`, each with or without the optional context line).
-- `split.go` — the divider between the list and the preview: `loadSplit`,
-  `saveSplit`, `stepSplit`, `splitWidths`. The file is copied, not imported:
-  the same one ships in asgotochanged, asgotonotes, asgotopr and asgotoissues (all under
+- `frame.go`: the single-frame layout the pickers share: `frameHead`,
+  `splitMain` (list and preview) and the section rows (`mainY`, `listY`,
+  `frameRows`, each with or without the optional context line), drawn with the
+  primitives of `border.go`. Copied, not imported: the same file ships in
+  asgoto, asgotopr, asgotoissues, asgotonotes and asgotochanged (all under
   github.com/asumaran), and there is no shared library. A pull request only
-  needs to change it here; the maintainer ports the change to the other copies.
-- `ui.go` — the bubbletea model/Update/View, toggles, mouse, styles,
-  `pathCells`.
-- `preview.go` — session preview as a `tea.Cmd` (tail of the transcript,
+  needs to change it here; the maintainer ports the change to the other
+  copies.
+- `split.go`: the divider between the list and the preview: `loadSplit`,
+  `saveSplit`, `stepSplit`, `splitWidths`, `moveSplit` (one step, remembered)
+  and `sizePanes` (the list and the preview get their share of the main
+  section). Copied, not imported, like `frame.go`: the same file ships in
+  asgotopr, asgotoissues, asgotonotes and asgotochanged.
+- `ui.go`: the bubbletea model/Update/View, toggles, mouse, styles.
+- `preview.go`: session preview as a `tea.Cmd` (tail of the transcript,
   prompts and replies only), render cache.
-- `scripts/pty-check.py` — end-to-end TUI driver (see Testing).
+- `scripts/pty-check.py`: end-to-end TUI driver (see Testing).
 
 ## Build & run
 
@@ -119,6 +160,7 @@ go build -o asgotosession .    # plugin runs ./asgotosession from the repo root
 ./asgotosession -dump -all     # include sessions whose directory is gone
 ./asgotosession -dump -query x # matches with scores
 go vet ./... && go test ./...
+scripts/pty-check.py ./asgotosession   # end-to-end TUI check on a pty (python3 + pyte)
 herdr plugin link "$PWD"   # link does NOT run [[build]]; go build yourself
 ```
 
@@ -154,6 +196,12 @@ Keybinding (user config): `prefix+y` / `ctrl+alt+h` → `plugin_action`
   prompt.
   herdr sets `HERDR_PLUGIN_ENTRYPOINT_ID` for a plugin pane; that is how the
   two cases are told apart.
+  Whatever reaches the input goes through `toInput`: a key, a paste from the
+  terminal (`tea.PasteMsg`) and the input's own `ctrl+v` filter the list the
+  same way (`typeInto`), and a message that leaves the query alone (a caret
+  move, the blink) never moves the cursor. A paste under the open panel is
+  dropped. A query made only of spaces, or a bare `~` or `'`, is not a query
+  (`hasTerms`): it does not filter, rank or move the cursor.
 - **Help and options**: the line at the foot shows the tool's own actions,
   the panel's key and the quit keys (`helpfoot.go`). `f1` opens the panel (`panel.go`, the same file in
   every tool of the family): the options on top, to change with `←`/`→` or
@@ -229,7 +277,11 @@ Keybinding (user config): `prefix+y` / `ctrl+alt+h` → `plugin_action`
   space (`foreground_process_group_id == shell_pid`) → new tab in that space →
   new space. The space is found by `worktree.checkout_path`, else by any pane
   sitting in that directory. A missing directory never quits: the popup stays
-  open with a footer notice.
+  open with a notice on the help line, in the error color, until the next key
+  (`footLine`).
+- **Errors**: transcripts that cannot be listed are reported in the list in
+  the error color (`loadErr` through the shared `emptyList`), as in every
+  tool of the family; the popup still opens.
 - **Agent focus is detached**: herdr needs a moment to recognize claude in the
   pane, and polling for it in-process would leave an empty popup on screen.
   `detachAgentFocus` re-runs the binary with `-await-focus <pane>` in its own
@@ -265,7 +317,8 @@ JSON, like the real ones.
 
 ## Commits & branches
 
-- Conventional Commits: `type(scope): description`.
+- Conventional Commits: `type(scope): description` (feat, fix, chore, docs,
+  style, refactor, test, perf).
 - Never mention AI tooling in commits, PRs, or any repo-visible text as the
   author of changes.
 - Default branch is `main`. Don't commit, tag, or push unless explicitly
@@ -274,7 +327,7 @@ JSON, like the real ones.
 
 ## Releasing
 
-`scripts/release.sh <X.Y.Z>` — clean-tree + vet/build/test gate, CHANGELOG
+`scripts/release.sh <X.Y.Z>`: clean-tree + vet/build/test gate, CHANGELOG
 generation from commit subjects, manifest version sync, commit + tag + GitHub
 release; CI (`.github/workflows/release.yml`) attaches
 the `asgotosession-<os>-<arch>` binaries (macOS and Linux, arm64 and amd64). Releasing never touches the linked plugin's

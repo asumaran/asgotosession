@@ -68,9 +68,13 @@ you typed. A `●` marks the sessions that are running in some herdr pane right
 now. The filter matches the title, the directory, the branch and the session
 id.
 
-The frame's top border shows how many sessions match out of the total and, in
-brackets, what the list is narrowed or widened to (`[in ~/some/dir]`,
-`[+missing dirs]`).
+The edge under the list shows how many sessions match out of the total. The
+frame's top border shows, in brackets, what the list is narrowed or widened to
+(`[in ~/some/dir]`, `[+missing dirs]`).
+
+Pasting into the filter (a terminal paste or `ctrl+v`) filters like typing
+does. A query of spaces only, or a bare `~` or `'`, is not a query yet: the
+list stays as it is and the cursor does not move.
 
 The right side shows the session under the cursor: directory, branch, id and
 the end of the conversation, your prompts and Claude's replies only. It opens
@@ -90,7 +94,7 @@ session.
 | `f1` | open the panel: the scope to change in place, and every key (`esc` closes it) |
 | `shift+←`/`shift+→` | resize the list; the split is remembered (the list takes a quarter of the width by default) |
 | click | select a row |
-| `esc`, `q` with an empty filter | close |
+| `esc`, `ctrl+c`, `q` with an empty filter | quit |
 
 ### Where a session is resumed
 
@@ -118,13 +122,13 @@ asgotosession [-here] [-all] [query]
 `-here` starts narrowed to the current directory, `-all` starts with the
 missing directories listed, and `query` is the initial filter.
 `CLAUDE_SESSIONS_CMD` replaces `claude` (a wrapper, or extra flags).
-`ASGOTOSESSION_CLIPBOARD` replaces the clipboard command `ctrl+y` feeds the
-session id to (`pbcopy` on macOS, else `wl-copy`, `xclip` or `xsel`).
 
 ## Behavior notes
 
-- asgotosession only reads the transcripts. The one thing it writes is its own
-  cache.
+- asgotosession only reads the transcripts. What it writes is its own: its
+  settings (the scope and the size of the list) and its cache.
+- Transcripts that cannot be listed are reported in the list, in red; the
+  popup still opens.
 - A transcript is scanned once for its directory, branch, title and first
   prompt, and the result is cached per (path, mtime, size) in the plugin state
   dir. About 550 transcripts (550 MB) list in half a second the first time and
@@ -142,13 +146,22 @@ go build -o asgotosession .   # local build (plugin runs ./asgotosession from th
 ./asgotosession -dump         # print the sessions as the popup would list them (no TTY)
 ./asgotosession -dump -all    # include the ones whose directory is gone
 ./asgotosession -dump -query eshop   # matches with their scores
+./asgotosession -version      # print the embedded version
 go vet ./... && go test ./...
 scripts/pty-check.py ./asgotosession   # end-to-end TUI check on a pty (python3 + pyte)
 herdr plugin link "$PWD"   # register the working copy (no build step)
 ```
 
-`ASGOTOSESSION_POPUP_WIDTH` / `ASGOTOSESSION_POPUP_HEIGHT` override the popup size
-from the manifest.
+Runtime state (the cache `sessions.json` and the settings `scope` and
+`split-columns`) lives in `HERDR_PLUGIN_STATE_DIR`; standalone runs use the
+same directory (`~/.local/state/herdr/plugins/asumaran.asgotosession/`).
+
+`CLAUDE_PROJECTS_DIR` points at another transcripts directory and
+`CLAUDE_SESSIONS_CMD` replaces `claude`. `ASGOTOSESSION_CLIPBOARD` replaces the
+clipboard command `ctrl+y` feeds the session id to (`pbcopy` on macOS, else
+`wl-copy`, `xclip` or `xsel`); the pty check points it at a logging stub.
+`ASGOTOSESSION_POPUP_WIDTH` / `ASGOTOSESSION_POPUP_HEIGHT` override the popup
+size from the manifest.
 
 ## Releasing
 
