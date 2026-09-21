@@ -1,3 +1,8 @@
+## v0.12.1 (2026-09-20)
+
+* chore(git): ignore the linux release binaries (c600f0d)
+* refactor(list): keep the cursor in view with scrollTo (aa9e53d)
+
 ## v0.12.0 (2026-09-20)
 
 * feat(ui): remember the scope between runs (aae0440)
