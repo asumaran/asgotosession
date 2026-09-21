@@ -37,6 +37,7 @@ var (
 // fixture: two sessions in an existing dir, one in a removed dir.
 func fixture(t *testing.T) (sessions []*session, dir string) {
 	t.Helper()
+	t.Setenv("HERDR_PLUGIN_STATE_DIR", t.TempDir()) // the scope is remembered: each test starts clean
 	dir = t.TempDir()
 	now := time.Now()
 	return []*session{
@@ -450,5 +451,29 @@ func TestCopyKeyCopiesTheSessionID(t *testing.T) {
 	res, _ = res.(model).Update(cmd())
 	if got := res.(model).flash.text; got != "nothing to copy" {
 		t.Errorf("flash with an empty list = %q", got)
+	}
+}
+
+// TestScopeIsRemembered: the scope is a setting, kept for the next run; the
+// flags of the command line go before it.
+func TestScopeIsRemembered(t *testing.T) {
+	sessions, dir := fixture(t)
+	sub := options{dir: filepath.Join(dir, "sub")}
+	m := press(newModel(sessions, "", sub), keyCtrlA) // everywhere -> + missing dirs
+	if !m.all || m.here || loadSetting(stateDir(), "scope") != "missing" {
+		t.Fatalf("ctrl+a: here=%v all=%v saved=%q", m.here, m.all, loadSetting(stateDir(), "scope"))
+	}
+	if next := newModel(sessions, "", sub); !next.all || next.here {
+		t.Errorf("the next run lists the missing dirs again: here=%v all=%v", next.here, next.all)
+	}
+	m = press(m, keyCtrlA) // -> this dir
+	if next := newModel(sessions, "", sub); !next.here || next.all {
+		t.Errorf("the next run narrows to this dir again: here=%v all=%v", next.here, next.all)
+	}
+	if next := newModel(sessions, "", options{}); next.here {
+		t.Errorf("without a directory there is nothing to narrow to")
+	}
+	if next := newModel(sessions, "", options{dir: sub.dir, all: true}); next.here || !next.all {
+		t.Errorf("-all goes before the remembered scope: here=%v all=%v", next.here, next.all)
 	}
 }

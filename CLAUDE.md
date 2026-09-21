@@ -66,6 +66,10 @@ are split by concern:
 - `statedir.go` — `stateDirFor`: the state dir herdr injects, or a fixed path
   under the config home when the tool runs on its own. The same file in every
   tool of the family that keeps state.
+- `setting.go` — `loadSetting`, `saveSetting`: a setting the tool remembers,
+  one plain-text file each in the state dir. Every option of the panel is
+  kept this way, per tool. The same file in every tool of the family that
+  needs it.
 - `age.go` — `compactAge` (`5m`, `3h`, `2d`, `6w`, `2y`) for a list column and
   `relTime` (`3h ago`) for a sentence. The same file in every tool of the
   family that shows an age.
@@ -201,7 +205,8 @@ Keybinding (user config): `prefix+y` / `ctrl+alt+h` → `plugin_action`
   plugin pane that directory is `focused_pane_cwd` from
   `HERDR_PLUGIN_CONTEXT_JSON` (herdr starts plugin panes in the plugin's own
   directory); in a plain run it is the cwd. Without one the cycle leaves
-  that step out. The toggle's help text names the scope it moves to next.
+  that step out. The scope is remembered (setting `scope`); `-here` and
+  `-all` go before it. The toggle's help text names the scope it moves to next.
 - **Keys vs. filter**: every printable key filters, so `q` quits only while
   the filter is empty. `ctrl+a` is intercepted before the textinput (which
   would treat it as line-start).

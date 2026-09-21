@@ -81,7 +81,7 @@ session.
 | --- | --- |
 | `enter` | resume the session |
 | `ctrl+y` | copy the session id (what `claude --resume` takes) to the clipboard; the help line confirms it |
-| `ctrl+a` | list more: from the directory the popup was opened from (or below it, the `-here` start) to everywhere, then also the sessions whose directory no longer exists, and around again |
+| `ctrl+a` | list more: from the directory the popup was opened from (or below it, the `-here` start) to everywhere, then also the sessions whose directory no longer exists, and around again. The scope is remembered; `-here` and `-all` go before it |
 | `↑/↓`, `ctrl+p`/`ctrl+n` | move the cursor |
 | PgDn/PgUp | move the cursor a page |
 | `alt+↑`/`alt+↓`, Home/End | top or bottom of the list |

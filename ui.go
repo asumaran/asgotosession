@@ -128,11 +128,21 @@ type model struct {
 }
 
 func newModel(sessions []*session, loadErr string, opts options) model {
+	// Without -here or -all the scope is the one left chosen last time.
+	here, all := opts.here, opts.all
+	if !here && !all {
+		switch loadSetting(stateDir(), "scope") {
+		case "here":
+			here = true
+		case "missing":
+			all = true
+		}
+	}
 	m := model{
 		sessions: sessions,
 		loadErr:  loadErr,
-		all:      opts.all,
-		here:     opts.here && opts.dir != "",
+		all:      all,
+		here:     here && opts.dir != "",
 		hereDir:  opts.dir,
 		home:     homeDir(),
 		now:      time.Now(),
@@ -278,13 +288,15 @@ func (m *model) options() []option {
 	return []option{{id: "scope", label: "Sessions", values: values, cur: cur, key: "^a"}}
 }
 
-// setOption moves to a scope. The key and the panel both come through here.
+// setOption moves to a scope and remembers it. The key and the panel both
+// come through here.
 func (m *model) setOption(id string, v int) tea.Cmd {
 	if id != "scope" {
 		return nil
 	}
 	name := m.options()[0].values[v]
 	m.here, m.all = name == scopeHere, name == scopeMissing
+	saveSetting(stateDir(), "scope", map[string]string{scopeHere: "here", scopeAll: "everywhere", scopeMissing: "missing"}[name])
 	m.syncHelp()
 	m.refilter()
 	m.renderList()
