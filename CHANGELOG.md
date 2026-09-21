@@ -1,3 +1,7 @@
+## v0.12.0 (2026-09-20)
+
+* feat(ui): remember the scope between runs (aae0440)
+
 ## v0.11.0 (2026-09-20)
 
 * feat(ui): open an options and keys panel with f1 (f66aeda)
