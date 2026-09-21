@@ -87,7 +87,9 @@ are split by concern:
   `overlay`). The same file in every tool of the family.
 - `listnav.go` — `listNav`: the keys that move the cursor through a list and
   where each one takes it, group headers skipped. `scrollTo` keeps the
-  cursor in view, with the header of its group when there is one. The same file in every tool
+  cursor in view, with the header of its group when there is one. `emptyList`
+  is what a list says instead of rows: the error, `No matches`, or the
+  tool's own reason. The same file in every tool
   of the family.
 - `highlight.go` — `highlight`/`highlightFrom`, `matchOver`, `onSel`,
   `selPad` and the `stSel`/`stMatch` styles: how a match and the selected row
@@ -199,6 +201,9 @@ Keybinding (user config): `prefix+y` / `ctrl+alt+h` → `plugin_action`
   path and a hidden corpus (branch + id). Matched indexes from `sahilm/fuzzy`
   are BYTE offsets. With an empty query the cursor stays on the row it was on
   (`refilter`).
+- **Settings**: the scope is one file in the state dir (`scope`;
+  `setting.go`, the same file in every tool of the family that remembers an
+  option), next to the divider's `split-columns`.
 - **Modes**: `ctrl+a`, the family's "list more" key, walks the scopes
   (`nextScope`): the directory the popup was opened from (`-here`),
   everywhere, everywhere plus the sessions whose directory is gone (`-all`),
@@ -211,7 +216,7 @@ Keybinding (user config): `prefix+y` / `ctrl+alt+h` → `plugin_action`
 - **Keys vs. filter**: every printable key filters, so `q` quits only while
   the filter is empty. `ctrl+a` is intercepted before the textinput (which
   would treat it as line-start).
-- **Copying**: `ctrl+y` copies the id of the session under the cursor (what
+- **Copy**: `ctrl+y` copies the id of the session under the cursor (what
   `claude --resume` takes) with `copyCmd` (`clipboard.go`) and the help line
   flashes `copied <id>` (`flash.go`, shown before the notice); both files are
   the same in every tool of the family. `ASGOTOSESSION_CLIPBOARD` replaces

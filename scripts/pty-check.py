@@ -296,6 +296,28 @@ check(divider(f) == grown, "the next run opens with the same split: %d" % divide
 s.send(SHIFT_LEFT, 0.6)
 s.send(b"q", 0.2); s.finish()
 
+# ---------- last run: the scope is an option of the panel, remembered; the mouse over the list ----------
+scope_file = os.path.join(home, ".local", "state", "herdr", "plugins", "asumaran.asgotosession", "scope")
+os.makedirs(os.path.dirname(scope_file), exist_ok=True)
+with open(scope_file, "w") as fh: fh.write("everywhere\n")
+s = Session(in_herdr=False)
+f = s.start()
+check(len([l for l in left(f) if l.strip()]) == 2 and "missing" not in status(f), "everywhere: two sessions: %r" % status(f))
+s.send(b"\x1bOP", 0.5)            # f1: the panel
+s.send(b" ", 0.5)                  # space on the scope: everywhere -> + missing dirs
+f = s.send(ESC, 0.6); dump("scope from the panel", f)
+check(len([l for l in left(f) if l.strip()]) == 3 and "+missing dirs" in status(f) and open(scope_file).read().strip() == "missing",
+      "the panel moves to the missing dirs and saves it: %r" % status(f))
+s.send(b"q", 0.2); s.finish()
+s = Session(in_herdr=False)
+f = s.start()
+check(len([l for l in left(f) if l.strip()]) == 3 and "+missing dirs" in status(f), "the next run opens in the same scope: %r" % status(f))
+f = s.send(b"\x1b[<0;5;5M\x1b[<0;5;5m", 0.6)   # SGR press+release on the second list line
+check(left(f)[1].startswith("▌") and s.proc.poll() is None and s.calls() == [], "a click selects the row and resumes nothing: %r" % left(f)[:3])
+f = s.send(b"\x1b[<65;5;5M", 0.6)   # the wheel, down, over the list
+check(left(f)[2].startswith("▌"), "the wheel over the list moves the cursor: %r" % left(f)[:3])
+s.send(b"q", 0.2); s.finish()
+
 shutil.rmtree(SANDBOX, ignore_errors=True)
 print("\n%d failure(s)" % len(failures))
 sys.exit(1 if failures else 0)
