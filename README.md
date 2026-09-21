@@ -121,7 +121,8 @@ asgotosession [-here] [-all] [query]
 
 `-here` starts narrowed to the current directory, `-all` starts with the
 missing directories listed, and `query` is the initial filter.
-`CLAUDE_SESSIONS_CMD` replaces `claude` (a wrapper, or extra flags).
+`ASGOTOSESSION_OPENER` replaces `claude` (a command line: a wrapper, or extra
+flags).
 
 ## Behavior notes
 
@@ -152,12 +153,15 @@ scripts/pty-check.py ./asgotosession   # end-to-end TUI check on a pty (python3 
 herdr plugin link "$PWD"   # register the working copy (no build step)
 ```
 
+`-dump` lists what the popup would: `-here` or `-all` when given, else the
+scope left chosen last time. The first line says which (`scope: everywhere`).
+
 Runtime state (the cache `sessions.json` and the settings `scope` and
 `split-columns`) lives in `HERDR_PLUGIN_STATE_DIR`; standalone runs use the
 same directory (`~/.local/state/herdr/plugins/asumaran.asgotosession/`).
 
 `CLAUDE_PROJECTS_DIR` points at another transcripts directory and
-`CLAUDE_SESSIONS_CMD` replaces `claude`. `ASGOTOSESSION_CLIPBOARD` replaces the
+`ASGOTOSESSION_OPENER` replaces `claude`. `ASGOTOSESSION_CLIPBOARD` replaces the
 clipboard command `ctrl+y` feeds the session id to (`pbcopy` on macOS, else
 `wl-copy`, `xclip` or `xsel`); the pty check points it at a logging stub.
 `ASGOTOSESSION_POPUP_WIDTH` / `ASGOTOSESSION_POPUP_HEIGHT` override the popup

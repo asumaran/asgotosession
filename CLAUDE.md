@@ -149,7 +149,9 @@ are split by concern:
   asgotopr, asgotoissues, asgotonotes and asgotochanged.
 - `ui.go`: the bubbletea model/Update/View, toggles, mouse, styles.
 - `preview.go`: session preview as a `tea.Cmd` (tail of the transcript,
-  prompts and replies only), render cache.
+  prompts and replies only), render cache, and the instant header
+  (`previewHeader`: title, directory, branch and id, live pane) that stays
+  fixed above the conversation with one blank line under it.
 - `scripts/pty-check.py`: end-to-end TUI driver (see Testing).
 
 ## Build & run
@@ -287,7 +289,8 @@ Keybinding (user config): `prefix+y` / `ctrl+alt+h` → `plugin_action`
   `detachAgentFocus` re-runs the binary with `-await-focus <pane>` in its own
   session (`Setsid`) and returns.
 - **Outside herdr** (`HERDR_ENV` != 1) the process `chdir`s and `exec`s
-  `claude --resume <id>`; `CLAUDE_SESSIONS_CMD` replaces the command words.
+  `claude --resume <id>`; `ASGOTOSESSION_OPENER` replaces the command words
+  (`opener.go`).
 - **Preview** reads at most the last 2 MB, keeps the last 40 turns clipped to
   1200 runes each, skips tool calls, tool results, tagged harness entries and
   sidechains, and lands scrolled to the bottom. Cached per (file, width,
@@ -310,7 +313,7 @@ For end-to-end verification without a TTY, `scripts/pty-check.py
 ./asgotosession` (python3 + `pyte`) spawns the binary on a pty, answers the
 terminal queries, replays keystrokes and asserts on pyte-rendered frames. It
 runs in a throwaway sandbox (fake `HOME`, synthetic transcripts via
-`CLAUDE_PROJECTS_DIR`, logging stubs as `CLAUDE_SESSIONS_CMD`,
+`CLAUDE_PROJECTS_DIR`, logging stubs as `ASGOTOSESSION_OPENER`,
 `HERDR_BIN_PATH` and `ASGOTOSESSION_CLIPBOARD`), so it never reads the real transcripts, never talks to a
 herdr server and never starts claude. Fixture transcripts must be compact
 JSON, like the real ones.
