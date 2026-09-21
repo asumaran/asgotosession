@@ -49,12 +49,14 @@ canonical `charm.land/<name>/v2` paths (the
 are split by concern:
 
 - `main.go`: flags (`-version`, `-dump`, `-all`, `-here`, `-query`, the
-  internal `-await-focus`), `tea.NewProgram`, post-quit `runResume`,
-  `runDump`.
+  internal `-await-focus`), `tea.NewProgram`, post-quit `runResume`, `runDump`
+  (it writes to an `io.Writer`, so the tests read what `-dump` prints).
 - `sessions.go`: pure logic: `scanTranscript` (raw-byte line matching),
   `loadSessions` (parallel scan + disk cache), `visibleSessions`, `markLive`,
   `stateDir()`.
-- `herdr.go`: the herdr CLI behind a `runner` func (faked in tests):
+- `herdr.go`: the herdr CLI behind a `runner` func (`herdrRun`, or `herdrAct`
+  for `openInHerdr`, which may create a space; both of `herdrcli.go`, faked in
+  tests):
   `liveSessions`, `openInHerdr`, `awaitAgentFocus` / `detachAgentFocus`,
   `runResume`.
 - `filter.go`: fuzzy rows.
@@ -66,7 +68,8 @@ are split by concern:
   a bare `~` or `'` do not, so they never filter, rank or move the cursor. The
   same file in every tool of the family.
 - `text.go`: `truncate`, `padRight`, `padLeft`: fitting text, styled or not,
-  into cells. The same file in every tool of the family.
+  into cells. `errorBlock` is an error for a preview: every line of it cut to
+  the width, in the error color. The same file in every tool of the family.
 - `statedir.go`: `stateDirFor`: the state dir herdr injects
   (`HERDR_PLUGIN_STATE_DIR`) or, when the tool runs on its own, the same
   directory worked out
@@ -105,11 +108,14 @@ are split by concern:
 - `highlight.go`: `highlight`/`highlightFrom`, `matchOver`, `onSel`,
   `selPad` and the `stSel`/`stMatch` styles: how a match and the selected row
   look. The same file in every tool of the family.
-- `flash.go`: `flash`, `flashMsg`, `clearFlashMsg`: a confirmation that takes
-  the help line for a moment. The same file in every tool of the family.
+- `flash.go`: `flash`, `flashMsg`, `flashErrMsg`, `clearFlashMsg`: a word that
+  takes the help line for a moment: a confirmation in green (`flash.set`), or
+  a key that could do nothing (`nothing to copy`) in the error color
+  (`flash.fail`). The same file in every tool of the family.
 - `clipboard.go`: `copyCmd`: feeds a text to the system clipboard and reports
-  it with a `flashMsg`; `ASGOTOSESSION_CLIPBOARD` replaces the command. The
-  same file in every tool of the family.
+  it with a `flashMsg`, or with a `flashErrMsg` when there is nothing to copy
+  or the copy fails; `ASGOTOSESSION_CLIPBOARD` replaces the command. The same
+  file in every tool of the family.
 - `border.go`: `hline`, `framed`, `fit`, `scrollPos`: the primitives the frame
   is drawn with (an edge with texts set into it, a line between the frame's
   sides, the position a scrolled viewport reports on an edge). `fitLines` is
@@ -126,6 +132,11 @@ are split by concern:
 - `herdrbin.go`: `herdrBin`: where the herdr executable is (`HERDR_BIN_PATH`,
   which the server hands to plugin commands, else `herdr` on `PATH`). The same
   file in every tool of the family that talks to herdr.
+- `herdrcli.go`: `herdrRun`, `herdrAct`, `herdrDo`, `herdrError`: running the herdr CLI. A
+  read (`herdrRun`) gets 5 seconds and a command that changes something
+  (`herdrAct`, `herdrDo`) 30, so a server that does not answer is an error, never a hang,
+  and a failure is said the way herdr said it (the message of its JSON error
+  object). The same file in every tool of the family that runs herdr.
 - `panecwd.go`: `paneDirs`, `paneCwd`, `enterPaneCwd`: which directory a popup
   was opened from. herdr starts a plugin pane in the plugin's own directory
   and hands over `focused_pane_cwd` and `workspace_cwd` in
@@ -134,6 +145,16 @@ are split by concern:
 - `pathcells.go`: `pathCells`, `pathTail`, `tailCut`: a path cut to a width
   by its head, its prefix dimmed, its matches marked. The same file in every
   tool that lists paths.
+- `opener.go`: `openerArgv`: the command `<TOOL>_OPENER` names, as words, or
+  nothing when the variable is unset and the tool's own default applies. The
+  value is a command line, not a path: `code -n` and a wrapper with flags both
+  work, a path with spaces does not. The same file in every tool of the family
+  that opens something.
+- `jsonfile.go`: `readJSONFile`, `writeJSONFile`, `writeFileAtomic`: a JSON
+  cache in the state dir. A file that is missing or does not parse reads as
+  nothing, and a write goes through a temporary file and a rename, so a popup
+  closed mid-write, or two of them writing at once, never leave half a file
+  for the next run. The same file in every tool of the family that keeps one.
 - `frame.go`: the single-frame layout the pickers share: `frameHead`,
   `splitMain` (list and preview) and the section rows (`mainY`, `listY`,
   `frameRows`, each with or without the optional context line), drawn with the
@@ -213,7 +234,9 @@ Keybinding (user config): `prefix+y` / `ctrl+alt+h` → `plugin_action`
   closes it before it does anything else. `?` is not a help key: the filter
   has the focus, so it is text. Moving, scrolling and resizing are listed in
   the panel only, so the help line stays short enough for a narrow popup. A
-  message (error, notice) takes the help line's place.
+  message takes the help line's place (`footLine`): a flash for a moment (a
+  confirmation in green, a key that could do nothing in the error color),
+  else an error or a notice in the error color.
   This tool's options are the scope `ctrl+a` walks: `options()` lists them as things stand and
   `setOption` is the one place that changes a setting, for the panel and for
   the keys that kept a shortcut. A setting that is chosen once has no key of
@@ -241,6 +264,7 @@ Keybinding (user config): `prefix+y` / `ctrl+alt+h` → `plugin_action`
 - **Disk cache**: `sessions.json` in `HERDR_PLUGIN_STATE_DIR` (standalone:
   `~/.local/state/herdr/plugins/asumaran.asgotosession`), keyed by path and valid while mtime and
   size match. Entries of deleted transcripts are dropped on the next save.
+  It is read and written through the shared `jsonfile.go`.
   Whether the directory still exists is NOT cached: it is checked every run.
 - **A query makes the list a search result**: rows are ranked, best match
   first, and the cursor sits on the first one (`rank` in `rank.go`, the same
@@ -268,7 +292,8 @@ Keybinding (user config): `prefix+y` / `ctrl+alt+h` → `plugin_action`
   would treat it as line-start).
 - **Copy**: `ctrl+y` copies the id of the session under the cursor (what
   `claude --resume` takes) with `copyCmd` (`clipboard.go`) and the help line
-  flashes `copied <id>` (`flash.go`, shown before the notice); both files are
+  flashes `copied <id>` in green, or `nothing to copy` and `copy failed: ...`
+  in the error color (`flash.go`, shown before the notice); both files are
   the same in every tool of the family. `ASGOTOSESSION_CLIPBOARD` replaces
   the clipboard command, which is how the tests and the pty check log it.
 - **Paths** that do not fit lose their head, not their tail (`pathCells`), so
@@ -294,8 +319,9 @@ Keybinding (user config): `prefix+y` / `ctrl+alt+h` → `plugin_action`
 - **Preview** reads at most the last 2 MB, keeps the last 40 turns clipped to
   1200 runes each, skips tool calls, tool results, tagged harness entries and
   sidechains, and lands scrolled to the bottom. Cached per (file, width,
-  mtime). There is no markdown rendering, so the program never needs the
-  terminal background color.
+  mtime). A transcript that cannot be read shows the error through the
+  shared `errorBlock` (`text.go`). There is no markdown rendering, so the
+  program never needs the terminal background color.
 - **Mouse**: the wheel follows the pointer, as in asgitlog: over the list
   (`overList`) it moves the cursor through the same code as the arrow keys,
   anywhere else it scrolls the preview. A left click on a list row moves the
