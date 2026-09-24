@@ -21,7 +21,7 @@ popup, same fuzzy search.
 │                           │                                                                                  │
 │                           │ Done: each field reports its own error under the input. …                        │
 ├───────────────── 358/358 ─┴────────────────────────────────────────────────────────────────────────── 12/12 ─┤
-│ type filter • enter resume • ^a missing dirs • f1 options • esc/q quit                                       │
+│ ~/wt/shop/fix-checkout-form-validation                                                          f1 options │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -84,7 +84,7 @@ session.
 | key | action |
 | --- | --- |
 | `enter` | resume the session |
-| `ctrl+y` | copy the session id (what `claude --resume` takes) to the clipboard; the help line confirms it |
+| `ctrl+y` | copy the session id (what `claude --resume` takes) to the clipboard; the foot confirms it |
 | `ctrl+a` | list more: from the directory the popup was opened from (or below it, the `-here` start) to everywhere, then also the sessions whose directory no longer exists, and around again. The scope is remembered; `-here` and `-all` go before it |
 | `↑/↓`, `ctrl+p`/`ctrl+n` | move the cursor |
 | PgDn/PgUp | move the cursor a page |

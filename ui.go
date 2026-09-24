@@ -48,7 +48,7 @@ type keyMap struct {
 	Help     key.Binding
 }
 
-// ShortHelp is the help line: the tool's own actions, the panel's key and the
+// ShortHelp is the help: the tool's own actions, the panel's key and the
 // quit keys. Moving, scrolling and resizing are in the expanded help, so the
 // line stays short enough for a narrow popup (a cut line loses the quit keys
 // first).
@@ -109,7 +109,7 @@ type model struct {
 
 	// ui
 	notice string // transient footer message, cleared by the next key
-	flash  flash  // confirmation on the help line (flash.go)
+	flash  flash  // confirmation at the foot (flash.go)
 	panel  panel  // options and keys, over the frame while it is open (panel.go)
 	ti     textinput.Model
 	listVP viewport.Model
@@ -204,8 +204,8 @@ func (m *model) prevW() int    { return max(10, m.detailsW()-2) }
 func (m *model) listW() int { w, _ := splitWidths(m.innerW(), m.split); return w }
 
 // bodyH is the height of the main section: everything but the frame's own
-// lines and the help, which takes more of them while `?` has it expanded.
-func (m *model) bodyH() int { return max(1, m.height-frameRows(false)-1) }
+// lines and the foot.
+func (m *model) bodyH() int { return max(1, m.height-frameRows-1) }
 
 func (m *model) resize() {
 	sizePanes(&m.listVP, &m.prevVP, m.listW(), m.prevW(), m.bodyH())
@@ -596,7 +596,7 @@ func (m model) toInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // overList reports whether a screen cell is inside the list.
 func (m *model) overList(x, y int) bool {
-	return inList(x, y, listY(false), m.listW(), m.bodyH())
+	return inList(x, y, listY, m.listW(), m.bodyH())
 }
 
 // handleClick moves the cursor to the row under a left click on the list. It
@@ -605,7 +605,7 @@ func (m model) handleClick(msg tea.MouseClickMsg) (tea.Model, tea.Cmd) {
 	if msg.Button != tea.MouseLeft || !m.overList(msg.X, msg.Y) {
 		return m, nil
 	}
-	i, ok := rowUnder(msg.Y, listY(false), m.listVP.YOffset(), len(m.rows))
+	i, ok := rowUnder(msg.Y, listY, m.listVP.YOffset(), len(m.rows))
 	if !ok || i == m.cursor {
 		return m, nil
 	}
@@ -616,19 +616,30 @@ func (m model) handleClick(msg tea.MouseClickMsg) (tea.Model, tea.Cmd) {
 
 func (m model) View() tea.View { return popupView(m.render(), true) }
 
-// render stacks the sections in one frame (see frame.go). There is no context
-// line: what the list is narrowed to fits next to the counter.
+// render stacks the sections in one frame (see frame.go). The foot carries
+// the directory the popup was opened from; what the list is narrowed to fits
+// next to the counter.
 func (m model) render() string {
 	w := m.width
-	out := frameHead(w, "", withDevMark(m.status()), m.ti.View())
+	out := frameHead(w, withDevMark(m.status()), m.ti.View())
 	out = append(out, splitMain(m.listLines(), m.rightLines(),
 		m.listW(), m.detailsW(), m.counter(), scrollPos(&m.prevVP))...)
-	out = append(out, framed(w, footLine(m.flash, m.notice, m.help, m.keys, w-4)), hline(w, "╰", "╯", "", ""))
+	out = append(out, framed(w, footLine(m.flash, m.notice, m.context(), m.help, m.keys, w-4)), hline(w, "╰", "╯", "", ""))
 	if m.panel.open {
 		keys := keyLines(m.help, m.keys, w-10)
 		out = overlay(out, panelLines(m.options(), m.panel.cursor, keys, w-4, len(out)-2), w)
 	}
 	return strings.Join(out, "\n")
+}
+
+// context is the directory the popup was opened from, for the foot, fitted to
+// the room the panel's key leaves: a long directory loses its head. Empty
+// when herdr gave none (paneCwd), and then the foot is the help.
+func (m model) context() string {
+	if m.hereDir == "" {
+		return ""
+	}
+	return stInfo.Render(pathTail(tildePath(m.hereDir, m.home), footRoom(m.help, m.keys, m.width-4)))
 }
 
 // counter is the matches/total count of the current mode, for the edge under

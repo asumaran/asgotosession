@@ -89,7 +89,7 @@ def check(cond, msg):
 
 class Session:
     """One run of the binary on a pty."""
-    def __init__(self, in_herdr, cwd=SANDBOX, args=()):
+    def __init__(self, in_herdr, cwd=SANDBOX, args=(), plugin=None):
         env = dict(os.environ, TERM="xterm-256color", COLORTERM="truecolor", HOME=home,
                    CLAUDE_PROJECTS_DIR=projects, ASGOTOSESSION_OPENER=claude, HERDR_BIN_PATH=herdr,
                    ASGOTOSESSION_CLIPBOARD=clipboard,
@@ -98,6 +98,9 @@ class Session:
             env.pop(k, None)
         if in_herdr:
             env["HERDR_ENV"] = "1"
+        if plugin is not None:   # a plugin pane: herdr names the directories the popup was opened from
+            env["HERDR_PLUGIN_ENTRYPOINT_ID"] = "asumaran.asgotosession.open"
+            env["HERDR_PLUGIN_CONTEXT_JSON"] = json.dumps(plugin)
         self.master, slave = pty.openpty()
         fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", ROWS, COLS, 0, 0))
         self.proc = subprocess.Popen([BIN, *args], stdin=slave, stdout=slave, stderr=slave, env=env,
@@ -188,6 +191,7 @@ def counter(f):
     return ""
 def status(f): return f[0].strip("╭╮─ ").removesuffix("(dev)").rstrip()
 def helpline(f): return f[-2]
+def foot(f): return f[-2].strip("│ ").rstrip()
 def dump(title, f):
     print("--- %s ---" % title)
     for i, l in enumerate(f): print("%2d|%s" % (i, l))
@@ -222,15 +226,16 @@ check("rewrite the cache layer" in rows[1], "an untitled session shows its first
 check("●" not in rows[0], "no live marks outside herdr")
 prev = "\n".join(right(f))
 check("❯ now the canonical url" in prev and "Done: the JSON-LD block" in prev, "preview shows the conversation")
-check(counter(f) == "2/2" and "enter resume" in helpline(f), "counter %r and help %r" % (counter(f), helpline(f)))
+check(counter(f) == "2/2" and SANDBOX[-20:] in foot(f) and foot(f).endswith("f1 options") and "enter resume" not in foot(f),
+      "counter %r; the foot names the directory and the panel key alone: %r" % (counter(f), foot(f)))
 
 f = s.send(CTRL_Y); dump("copied", f)
 copied = open(clip_log).read() if os.path.exists(clip_log) else None
 check(copied == LIVE, "ctrl+y copies the session id: %r" % copied)
-check("copied " + LIVE in helpline(f), "the help line confirms the copy: %r" % helpline(f))
+check("copied " + LIVE in helpline(f) and foot(f).endswith("f1 options"), "the foot confirms the copy, next to the panel key: %r" % helpline(f))
 check(prompt(f) == "asgotosession ❯ Search by title, directory, branch…", "ctrl+y is not typed into the filter: %r" % f[1])
 s.pump(2.0); s.repaint(); f = s.frame()
-check("enter resume" in helpline(f), "the help comes back after the flash: %r" % helpline(f))
+check(SANDBOX[-20:] in foot(f) and foot(f).endswith("f1 options"), "the directory comes back after the flash: %r" % foot(f))
 
 f = s.send(CTRL_A); rows = [l for l in left(f) if l.strip()]
 check(len(rows) == 3 and "old work" in rows[2], "ctrl+a lists missing directories: %d rows" % len(rows))
@@ -266,12 +271,24 @@ check("herdr|workspace create --cwd %s --label tool --focus" % tool in calls, "t
 check("herdr|pane run w7:p1 %s --resume %s" % (claude, PLAIN) in calls, "the resume command runs in the new pane")
 check("herdr|agent focus w7:p1" in calls, "the detached helper focuses the agent pane")
 
+# ---------- run 3b: a plugin pane: the foot names the pane's directory, not the process's ----------
+s = Session(in_herdr=True, plugin={"focused_pane_cwd": tool, "workspace_cwd": home})
+f = s.start(); dump("plugin pane", f)
+check("~/Developer/tool" in foot(f) and foot(f).endswith("f1 options"), "the foot names the focused pane's directory: %r" % foot(f))
+s.send(b"q", 0.2)
+check(s.finish() == 0, "q quits")
+s = Session(in_herdr=True, plugin={})
+f = s.start()
+check("enter resume" in foot(f) and "f1 options" in foot(f), "no directory from herdr: the foot is the help: %r" % foot(f))
+s.send(b"q", 0.2)
+check(s.finish() == 0, "q quits")
+
 # ---------- run 4: -here + initial query, ctrl+a widens, q quits ----------
 s = Session(in_herdr=False, cwd=tool, args=("-here",))
 f = s.start(); dump("-here", f)
 rows = [l for l in left(f) if l.strip()]
 check(len(rows) == 1 and "cache layer" in rows[0], "-here narrows to the current directory: %r" % rows)
-check("^a everywhere" in helpline(f) and counter(f) == "1/1" and status(f).startswith("[in "), "help offers to widen and the scope sits on the top border: %r %r" % (counter(f), status(f)))
+check("~/Developer/tool" in foot(f) and foot(f).endswith("f1 options") and counter(f) == "1/1" and status(f).startswith("[in "), "the foot names the directory and the scope sits on the top border: %r %r" % (foot(f), status(f)))
 f = s.send(CTRL_A); rows = [l for l in left(f) if l.strip()]
 check(len(rows) == 2, "ctrl+a lists everywhere: %d rows" % len(rows))
 s.send(b"q", 0.2)

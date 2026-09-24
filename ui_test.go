@@ -303,11 +303,11 @@ func TestFrameGeometry(t *testing.T) {
 		if !strings.HasPrefix(plain[0], "╭") || !strings.HasPrefix(plain[len(plain)-1], "╰") || !strings.HasPrefix(plain[1], "│ asgotosession") {
 			t.Errorf("%v: frame corners missing", size)
 		}
-		if !strings.Contains(plain[len(plain)-3], "─ 2/2 ─┴") || !strings.Contains(plain[mainY(false)], "┬") {
-			t.Errorf("%v: counter or divider misplaced:\n%s\n%s", size, plain[len(plain)-3], plain[mainY(false)])
+		if !strings.Contains(plain[len(plain)-3], "─ 2/2 ─┴") || !strings.Contains(plain[mainY], "┬") {
+			t.Errorf("%v: counter or divider misplaced:\n%s\n%s", size, plain[len(plain)-3], plain[mainY])
 		}
-		if !strings.Contains(plain[listY(false)], "▌●Canon") {
-			t.Errorf("%v: first row is not at listY: %q", size, plain[listY(false)])
+		if !strings.Contains(plain[listY], "▌●Canon") {
+			t.Errorf("%v: first row is not at listY: %q", size, plain[listY])
 		}
 	}
 }
@@ -315,13 +315,13 @@ func TestFrameGeometry(t *testing.T) {
 func TestClickSelectsRow(t *testing.T) {
 	sessions, _ := fixture(t)
 	m := newModel(sessions, "", options{})
-	next, _ := m.Update(tea.MouseClickMsg{X: 3, Y: listY(false) + 1, Button: tea.MouseLeft})
+	next, _ := m.Update(tea.MouseClickMsg{X: 3, Y: listY + 1, Button: tea.MouseLeft})
 	clicked := next.(model)
 	if got := clicked.current().id; got != "s2" {
 		t.Errorf("click on the second row selected %s", got)
 	}
 	// The divider, the preview and the frame's own lines select nothing.
-	for _, c := range [][2]int{{0, listY(false) + 1}, {m.listW() + 1, listY(false) + 1}, {3, mainY(false)}, {3, 1}} {
+	for _, c := range [][2]int{{0, listY + 1}, {m.listW() + 1, listY + 1}, {3, mainY}, {3, 1}} {
 		next, _ = m.Update(tea.MouseClickMsg{X: c[0], Y: c[1], Button: tea.MouseLeft})
 		clicked = next.(model)
 		if got := clicked.current().id; got != "s1" {
@@ -415,7 +415,7 @@ func TestMouseWheelFollowsThePointer(t *testing.T) {
 	next, _ := newModel(sessions, "", options{}).Update(tea.WindowSizeMsg{Width: 120, Height: 24})
 	m := next.(model)
 	wheel := func(x int, b tea.MouseButton) {
-		next, _ := m.Update(tea.MouseWheelMsg{X: x, Y: listY(false), Button: b})
+		next, _ := m.Update(tea.MouseWheelMsg{X: x, Y: listY, Button: b})
 		m = next.(model)
 	}
 	first := m.cursor
@@ -519,7 +519,7 @@ func TestCopyKeyCopiesTheSessionID(t *testing.T) {
 	res, _ = m.Update(clearFlashMsg(m.flash.seq))
 	plain = strings.Split(ansi.Strip(res.(model).View().Content), "\n")
 	if help := plain[len(plain)-2]; !strings.Contains(help, "type filter") {
-		t.Errorf("after the timer the help is back: %q", help)
+		t.Errorf("after the timer the help is back (no directory, so no context): %q", help)
 	}
 
 	// with nothing under the cursor there is nothing to copy
@@ -718,5 +718,38 @@ func TestRunDumpQuery(t *testing.T) {
 		if strings.Contains(got, not) {
 			t.Errorf("the query dump has %q, a piece of the full listing:\n%s", not, got)
 		}
+	}
+}
+
+// TestFootShowsTheDirectory: with a directory to name, the foot carries it on
+// the left and the panel's key alone on the right; a flash takes the
+// directory's place and gives it back; without one the foot is the help.
+func TestFootShowsTheDirectory(t *testing.T) {
+	sessions, _ := fixture(t)
+	dir := filepath.Join(t.TempDir(), "space")
+	next, _ := newModel(sessions, "", options{dir: dir}).Update(tea.WindowSizeMsg{Width: 120, Height: 20})
+	m := next.(model)
+	foot := func(m model) string {
+		plain := strings.Split(ansi.Strip(m.View().Content), "\n")
+		return strings.TrimRight(plain[len(plain)-2], " │")
+	}
+	if f := foot(m); !strings.HasPrefix(f, "│ "+tildePath(dir, m.home)) || !strings.HasSuffix(f, "f1 options") || strings.Contains(f, "enter resume") {
+		t.Errorf("foot = %q, want the directory, then the panel key alone", f)
+	}
+	m.flash.set("copied s1")
+	if f := foot(m); !strings.Contains(f, "copied s1") || strings.Contains(f, "space") || !strings.HasSuffix(f, "f1 options") {
+		t.Errorf("a flash takes the directory's place, not the panel key's: %q", f)
+	}
+	res, _ := m.Update(clearFlashMsg(m.flash.seq))
+	if f := foot(res.(model)); !strings.Contains(f, "space") || !strings.HasSuffix(f, "f1 options") {
+		t.Errorf("after the timer the directory is back: %q", f)
+	}
+	next, _ = newModel(sessions, "", options{}).Update(tea.WindowSizeMsg{Width: 120, Height: 20})
+	if f := foot(next.(model)); !strings.Contains(f, "enter resume") || !strings.Contains(f, "esc/q quit") {
+		t.Errorf("no directory: the foot is the help: %q", f)
+	}
+	next, _ = newModel(sessions, "", options{dir: dir}).Update(tea.WindowSizeMsg{Width: 40, Height: 20})
+	if f := foot(next.(model)); !strings.HasSuffix(f, "f1 options") || !strings.Contains(f, "…") || ansi.StringWidth(f) > 39 {
+		t.Errorf("a narrow foot cuts the directory's head, never the panel key: %q", f)
 	}
 }
