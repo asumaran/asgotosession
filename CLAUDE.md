@@ -51,9 +51,13 @@ are split by concern:
 - `main.go`: flags (`-version`, `-dump`, `-all`, `-here`, `-query`, the
   internal `-await-focus`), `tea.NewProgram`, post-quit `runResume`, `runDump`
   (it writes to an `io.Writer`, so the tests read what `-dump` prints).
-- `sessions.go`: pure logic: `scanTranscript` (raw-byte line matching),
-  `loadSessions` (parallel scan + disk cache), `visibleSessions`, `markLive`,
-  `stateDir()`.
+- `sessions.go`: `loadSessions` (parallel scan + disk cache),
+  `visibleSessions`, `markLive`, `stateDir()`.
+- `sessiontitle.go`: what a transcript says about its session:
+  `projectsDir` (`CLAUDE_PROJECTS_DIR`), `scanTranscript` (raw-byte line
+  matching: first cwd and branch, custom title over the latest ai title, first
+  typed prompt), `transcriptPath` and `readTranscript` (by session id). The
+  same file in asagents, which titles agents with it.
 - `herdr.go`: the herdr CLI behind a `runner` func (`herdrRun`, or `herdrAct`
   for `openInHerdr`, which may create a space; both of `herdrcli.go`, faked in
   tests):
